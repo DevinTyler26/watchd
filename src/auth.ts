@@ -1,6 +1,6 @@
-import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { type NextAuthOptions, getServerSession } from "next-auth";
+import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 
 function assertEnv(name: string) {
@@ -11,7 +11,7 @@ function assertEnv(name: string) {
   return value;
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "database",
@@ -20,9 +20,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: assertEnv("GOOGLE_CLIENT_ID"),
       clientSecret: assertEnv("GOOGLE_CLIENT_SECRET"),
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
-  trustHost: true,
   callbacks: {
     session: async ({ session, user }) => {
       if (session.user) {
@@ -31,4 +31,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-});
+};
+
+export function auth() {
+  return getServerSession(authOptions);
+}

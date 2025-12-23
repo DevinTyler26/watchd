@@ -3,6 +3,11 @@
 import Image from "next/image";
 import { FormEvent, useMemo, useState } from "react";
 
+type ShareTarget = {
+  id: string | null;
+  label: string;
+};
+
 type Filter = "all" | "movie" | "series";
 
 type SearchResult = {
@@ -19,7 +24,7 @@ const filters: Array<{ label: string; value: Filter }> = [
   { label: "Series", value: "series" },
 ];
 
-export function SearchAndShare() {
+export function SearchAndShare({ target }: { target: ShareTarget }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -84,6 +89,7 @@ export function SearchAndShare() {
           imdbId: result.imdbId,
           note: notes[result.imdbId],
           liked: liked[result.imdbId] ?? true,
+          groupId: target.id ?? undefined,
         }),
       });
       const payload = await response.json();
@@ -110,6 +116,10 @@ export function SearchAndShare() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-night/40 px-4 py-3 text-sm text-white/70">
+        Sharing with{" "}
+        <span className="font-semibold text-white">{target.label}</span>
+      </div>
       <form
         onSubmit={handleSearch}
         className="space-y-4 rounded-2xl border border-white/10 bg-night/40 p-4 backdrop-blur"

@@ -9,6 +9,12 @@ const payloadSchema = z.object({
   imdbId: z.string().min(2, "IMDb id is required"),
   note: z.string().max(500).optional(),
   liked: z.boolean().optional(),
+  groupId: z.string().cuid().optional().nullable(),
+});
+
+const deleteSchema = z.object({
+  imdbId: z.string().min(2, "IMDb id is required"),
+  groupId: z.string().cuid().optional().nullable(),
 });
 
 export async function GET() {
@@ -45,16 +51,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "IMDb title not found" }, { status: 404 });
   }
 
+  const targetGroupId = parsed.data.groupId ?? null;
+
+  if (targetGroupId) {
+    const membership = await prisma.groupMembership.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: targetGroupId,
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (!membership || membership.status !== "ACTIVE") {
+      return NextResponse.json(
+        { error: "You are not part of that group." },
+        { status: 403 },
+      );
+    }
+  }
+
   const entry = await prisma.watchEntry.upsert({
     where: {
-      userId_imdbId: {
+      userId_imdbId_groupId: {
         userId: session.user.id,
         imdbId: title.imdbId,
+        groupId: targetGroupId,
       },
     },
     update: {
       review: parsed.data.note?.trim() || null,
       liked: parsed.data.liked ?? true,
+      groupId: targetGroupId,
     },
     create: {
       userId: session.user.id,
@@ -65,10 +93,14 @@ export async function POST(request: Request) {
       posterUrl: title.posterUrl,
       review: parsed.data.note?.trim() || null,
       liked: parsed.data.liked ?? true,
+      groupId: targetGroupId,
     },
     include: {
       user: {
         select: { id: true, name: true, image: true },
+      },
+      group: {
+        select: { id: true, name: true, slug: true },
       },
     },
   });
@@ -76,4 +108,69 @@ export async function POST(request: Request) {
   revalidatePath("/");
 
   return NextResponse.json({ entry });
+}
+
+export async function DELETE(request: Request) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = deleteSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.flatten().formErrors.join(", ") },
+      { status: 400 },
+    );
+  }
+
+  const targetGroupId = parsed.data.groupId ?? null;
+
+  if (targetGroupId) {
+    const membership = await prisma.groupMembership.findUnique({
+      where: {
+        groupId_userId: {
+          groupId: targetGroupId,
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (!membership || membership.status !== "ACTIVE") {
+      return NextResponse.json(
+        { error: "You are not part of that group." },
+        { status: 403 },
+      );
+    }
+  }
+
+  const deleteWhere =
+    targetGroupId === null
+      ? {
+          userId: session.user.id,
+          imdbId: parsed.data.imdbId,
+          groupId: null,
+        }
+      : {
+          userId: session.user.id,
+          imdbId: parsed.data.imdbId,
+          groupId: targetGroupId,
+        };
+
+  const result = await prisma.watchEntry.deleteMany({
+    where: deleteWhere,
+  });
+
+  if (result.count === 0) {
+    return NextResponse.json(
+      { error: "Entry not found." },
+      { status: 404 },
+    );
+  }
+
+  revalidatePath("/");
+  return NextResponse.json({ success: true });
 }

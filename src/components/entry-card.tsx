@@ -1,12 +1,20 @@
 import Image from "next/image";
-import type { WatchEntry, User } from "@prisma/client";
+import type { WatchEntry, User, Group } from "@prisma/client";
 import { relativeTimeFromNow } from "@/lib/time";
+import { RemoveEntryButton } from "@/components/remove-entry-button";
 
 export type EntryWithUser = WatchEntry & {
   user: Pick<User, "id" | "name" | "image">;
+  group?: Pick<Group, "id" | "name" | "slug"> | null;
 };
 
-export function EntryCard({ entry }: { entry: EntryWithUser }) {
+export function EntryCard({
+  entry,
+  canRemove = false,
+}: {
+  entry: EntryWithUser;
+  canRemove?: boolean;
+}) {
   return (
     <article className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-6 shadow-xl shadow-black/30">
       <div className="flex items-center gap-4">
@@ -30,6 +38,20 @@ export function EntryCard({ entry }: { entry: EntryWithUser }) {
           <p className="text-xs text-white/50">
             {relativeTimeFromNow(entry.createdAt)}
           </p>
+        </div>
+        <div className="ml-auto text-right">
+          <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.3em] text-white/60">
+            {entry.group ? entry.group.name : "Personal"}
+          </span>
+          {canRemove ? (
+            <div className="mt-3">
+              <RemoveEntryButton
+                imdbId={entry.imdbId}
+                groupId={entry.groupId}
+                title={entry.title}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="flex items-start gap-4">
