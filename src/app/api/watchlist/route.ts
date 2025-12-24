@@ -70,6 +70,24 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    const existingInGroup = await prisma.watchEntry.findFirst({
+      where: {
+        groupId: targetGroupId,
+        imdbId: parsed.data.imdbId,
+      },
+      select: {
+        id: true,
+        user: { select: { name: true } },
+      },
+    });
+
+    if (existingInGroup) {
+      const message = existingInGroup.user?.name
+        ? `${existingInGroup.user.name} already shared this to the group. React or add a comment on the existing card.`
+        : "That title is already in this group. React or add a comment on the existing card.";
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
   }
 
   const note = parsed.data.note?.trim() || null;
@@ -126,21 +144,33 @@ export async function POST(request: Request) {
         include: includeConfig,
       });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        const conflict = await prisma.watchEntry.findFirst({
-          where: {
-            userId: session.user.id,
-            imdbId: title.imdbId,
-            groupId: targetGroupId,
-          },
-          select: { id: true },
-        });
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+          // Uniqueness conflicts: either user's own personal entry or a group duplicate.
+          if (targetGroupId) {
+            return NextResponse.json(
+              {
+                error:
+                  "That title is already in this group. React or add a comment on the existing card.",
+              },
+              { status: 409 },
+            );
+          }
 
-        if (conflict?.id) {
-          entry = await updateExisting(conflict.id);
+          const conflict = await prisma.watchEntry.findFirst({
+            where: {
+              userId: session.user.id,
+              imdbId: title.imdbId,
+              groupId: targetGroupId,
+            },
+            select: { id: true },
+          });
+
+          if (conflict?.id) {
+            entry = await updateExisting(conflict.id);
+          } else {
+            throw error;
+          }
         } else {
           throw error;
         }

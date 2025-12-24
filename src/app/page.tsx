@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/header";
 import { AddEntryPanel } from "@/components/add-entry-panel";
 import { EntryCard, type EntryWithUser } from "@/components/entry-card";
 import { FeedSortControls } from "@/components/feed-sort-controls";
+import { SharedWatchlistHero } from "@/components/shared-watchlist-hero";
 import { getUserGroups } from "@/lib/groups";
 import { prisma } from "@/lib/prisma";
 
@@ -87,9 +88,25 @@ export default async function Home({
     searchParams && isPromise<SearchParams>(searchParams)
       ? await searchParams
       : (searchParams as SearchParams | undefined);
-  const memberships = session?.user?.id
-    ? await getUserGroups(session.user.id)
-    : [];
+  let memberships: Awaited<ReturnType<typeof getUserGroups>> = [];
+  let heroDismissed = false;
+  if (session?.user?.id) {
+    const heroPreferencePromise = prisma.user
+      .findUnique({
+        where: { id: session.user.id },
+        select: { heroDismissedAt: true },
+      })
+      .catch((error) => {
+        console.warn("Hero preference lookup failed", error);
+        return null;
+      });
+    const [membershipRows, viewerPreferences] = await Promise.all([
+      getUserGroups(session.user.id),
+      heroPreferencePromise,
+    ]);
+    memberships = membershipRows;
+    heroDismissed = Boolean(viewerPreferences?.heroDismissedAt);
+  }
   const groups: GroupSummary[] = memberships.map((membership) => ({
     id: membership.group.id,
     name: membership.group.name,
@@ -97,10 +114,12 @@ export default async function Home({
     shareCode: membership.group.shareCode,
     role: membership.role,
   }));
-  const shareTargets = groups.map((group) => ({
-    id: group.id,
-    name: group.name,
-  }));
+  const shareTargets = session?.user
+    ? [
+        { id: null as string | null, name: "Personal feed" },
+        ...groups.map((group) => ({ id: group.id, name: group.name })),
+      ]
+    : [];
 
   const requestedCodeRaw = resolvedParams?.group;
   const requestedCode = Array.isArray(requestedCodeRaw)
@@ -164,31 +183,25 @@ export default async function Home({
   const viewerReactionMap = new Map(
     viewerReactionRows.map((item) => [item.entryId, item.reaction])
   );
-  const personalEntryImdbIds =
+  const viewerEntryImdbIds =
     viewerId && entriesRaw.length
       ? Array.from(
           new Set(
             entriesRaw
-              .filter(
-                (entry) => entry.userId === viewerId && entry.groupId === null
-              )
+              .filter((entry) => entry.userId === viewerId)
               .map((entry) => entry.imdbId)
           )
         )
       : [];
-  if (personalEntryImdbIds.length > 1) {
-    const unique = Array.from(new Set(personalEntryImdbIds));
-    personalEntryImdbIds.splice(0, personalEntryImdbIds.length, ...unique);
-  }
   const sharedGroupsByImdb = new Map<
     string,
     Array<{ id: string; name: string }>
   >();
-  if (viewerId && personalEntryImdbIds.length) {
+  if (viewerId && viewerEntryImdbIds.length) {
     const sharedRows = await prisma.watchEntry.findMany({
       where: {
         userId: viewerId,
-        imdbId: { in: personalEntryImdbIds },
+        imdbId: { in: viewerEntryImdbIds },
         groupId: { not: null },
       },
       select: {
@@ -217,7 +230,7 @@ export default async function Home({
       dislikeCount: counts.dislikeCount,
       viewerReaction: viewerReactionMap.get(entry.id) ?? null,
       sharedGroups:
-        entry.groupId === null && entry.userId === viewerId
+        entry.userId === viewerId
           ? sharedGroupsByImdb.get(entry.imdbId) ?? []
           : undefined,
     };
@@ -244,7 +257,6 @@ export default async function Home({
   const viewingLabel = selectedGroup ? selectedGroup.name : "Personal feed";
   const groupMismatch =
     requestedCode !== "personal" && !selectedGroup && groups.length > 0;
-  const isPersonalFeed = !selectedGroup;
 
   const viewingFeedConfig = session?.user
     ? { groups, activeCode: activeFeedCode }
@@ -286,27 +298,10 @@ export default async function Home({
           </section>
         ) : null}
 
-        <section className="space-y-6 rounded-3xl border border-white/5 bg-midnight/60 p-8 text-white shadow-2xl shadow-black/40">
-          <p className="text-sm uppercase tracking-[0.5em] text-white/60">
-            Shared watchlist
-          </p>
-          <div className="space-y-4">
-            <h1 className="text-4xl font-semibold leading-tight">
-              Watch party signal for the people you trust most.
-            </h1>
-            <p className="max-w-2xl text-lg text-white/70">
-              Watchd keeps a living feed of movies and shows your inner circle
-              swears by. Compare notes, save precious time, and never
-              doom-scroll for something to watch again.
-            </p>
-          </div>
-          {!session?.user && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-              Sign in with Google to start logging your queue and invite your
-              crew.
-            </div>
-          )}
-        </section>
+        <SharedWatchlistHero
+          signedIn={Boolean(session?.user)}
+          initiallyDismissed={heroDismissed}
+        />
 
         {session?.user ? (
           <AddEntryPanel
@@ -340,7 +335,6 @@ export default async function Home({
                   entry={entry}
                   canRemove={session?.user?.id === entry.userId}
                   canReact={Boolean(session?.user)}
-                  canShareFromPersonal={isPersonalFeed}
                   shareTargets={shareTargets}
                   key={`${entry.userId}-${entry.imdbId}-${
                     entry.groupId ?? "personal"
