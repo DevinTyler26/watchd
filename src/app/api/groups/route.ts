@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,14 +10,8 @@ const createGroupSchema = z.object({
   name: z.string().min(2, "Name is required").max(60),
 });
 
-function slugify(input: string) {
-  const base = input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "")
-    .slice(0, 40);
-  return base.length > 0 ? base : "circle";
+function generateSlug() {
+  return randomUUID().replace(/-/g, "").slice(0, 10);
 }
 
 export async function GET() {
@@ -35,6 +31,7 @@ export async function GET() {
     id: membership.group.id,
     name: membership.group.name,
     slug: membership.group.slug,
+    shareCode: membership.group.shareCode,
     role: membership.role,
   }));
 
@@ -58,25 +55,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const baseSlug = slugify(parsed.data.name);
-  let slug = baseSlug;
-  let attempts = 0;
-
-  while (attempts < 5) {
-    const existing = await prisma.group.findUnique({ where: { slug } });
-    if (!existing) break;
-    slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
-    attempts += 1;
-  }
-
-  if (await prisma.group.findUnique({ where: { slug } })) {
-    slug = `${baseSlug}-${Date.now().toString(36)}`;
+  let shareCode = generateSlug();
+  while (await prisma.group.findUnique({ where: { shareCode } })) {
+    shareCode = generateSlug();
   }
 
   const group = await prisma.group.create({
     data: {
       name: parsed.data.name.trim(),
-      slug,
+      slug: shareCode,
+      shareCode,
       ownerId: session.user.id,
       memberships: {
         create: {
@@ -99,6 +87,7 @@ export async function POST(request: Request) {
       id: group.id,
       name: group.name,
       slug: group.slug,
+      shareCode: group.shareCode,
       role: "OWNER",
     },
   });

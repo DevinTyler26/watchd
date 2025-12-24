@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 interface RemoveEntryButtonProps {
@@ -15,12 +15,11 @@ export function RemoveEntryButton({
   title,
 }: RemoveEntryButtonProps) {
   const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleRemove = () => {
-    startTransition(() => {
-      void deleteEntry();
-    });
+    setConfirming(true);
   };
 
   const deleteEntry = async () => {
@@ -43,20 +42,62 @@ export function RemoveEntryButton({
       return;
     }
 
+    setConfirming(false);
     router.refresh();
+  };
+
+  const confirmRemove = () => {
+    startTransition(() => {
+      void deleteEntry();
+    });
   };
 
   const label = isPending ? "Removing..." : "Remove entry";
 
   return (
-    <button
-      type="button"
-      onClick={handleRemove}
-      disabled={isPending}
-      className="rounded border border-rose-500 px-3 py-1 text-sm font-medium text-rose-500 transition hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-      aria-label={`Remove ${title}`}
-    >
-      {label}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleRemove}
+        disabled={isPending}
+        className="rounded border border-rose-500 px-3 py-1 text-sm font-medium text-rose-500 transition hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+        aria-label={`Remove ${title}`}
+      >
+        {label}
+      </button>
+
+      {confirming ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 py-8">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
+            <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
+              Heads up
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">Remove this entry?</h3>
+            <p className="mt-3 text-sm text-white/70">
+              {title} will disappear from this signal feed. You can always add
+              it again later.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={isPending}
+                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Keep it
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemove}
+                disabled={isPending}
+                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isPending ? "Removing..." : "Yes, remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

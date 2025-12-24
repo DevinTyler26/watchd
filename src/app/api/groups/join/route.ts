@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   const group = await prisma.group.findUnique({
     where: { id: invite.groupId },
-    select: { id: true, name: true, slug: true },
+    select: { id: true, name: true, slug: true, shareCode: true },
   });
 
   if (!group) {

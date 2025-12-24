@@ -1,18 +1,19 @@
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { sendInviteEmail } from "@/lib/email";
 
 const inviteSchema = z.object({
   email: z.string().email(),
 });
 
 export async function POST(
-  request: Request,
-  { params }: { params: { groupId: string } },
+  request: NextRequest,
+  { params }: { params: Promise<{ groupId: string }> },
 ) {
   const session = await auth();
 
@@ -20,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
-  const groupId = params.groupId;
+  const { groupId } = await params;
   const body = await request.json().catch(() => ({}));
   const parsed = inviteSchema.safeParse(body);
 
@@ -47,21 +48,66 @@ export async function POST(
     );
   }
 
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { name: true },
+  });
+
+  if (!group) {
+    return NextResponse.json(
+      { error: "Group not found." },
+      { status: 404 },
+    );
+  }
+
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
+  const normalizedEmail = parsed.data.email.toLowerCase();
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    const existingMembership = await prisma.groupMembership.findUnique({
+      where: {
+        groupId_userId: {
+          groupId,
+          userId: existingUser.id,
+        },
+      },
+      select: { status: true },
+    });
+
+    if (existingMembership && existingMembership.status === "ACTIVE") {
+      return NextResponse.json(
+        { error: "That email already belongs to the circle." },
+        { status: 400 },
+      );
+    }
+  }
 
   const invite = await prisma.groupInvite.create({
     data: {
       groupId,
-      email: parsed.data.email.toLowerCase(),
+      email: normalizedEmail,
       token,
       expiresAt,
       createdById: session.user.id,
     },
   });
 
+  const emailResult = await sendInviteEmail({
+    to: normalizedEmail,
+    groupName: group.name,
+    token,
+    inviterName: session.user.name,
+  });
+
   return NextResponse.json({
     token: invite.token,
     expiresAt: invite.expiresAt,
+    emailSent: emailResult.sent,
   });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { fetchTitleById } from "@/lib/imdb";
 import { prisma } from "@/lib/prisma";
@@ -71,39 +72,83 @@ export async function POST(request: Request) {
     }
   }
 
-  const entry = await prisma.watchEntry.upsert({
+  const note = parsed.data.note?.trim() || null;
+  const liked = parsed.data.liked ?? true;
+
+  const existingEntry = await prisma.watchEntry.findFirst({
     where: {
-      userId_imdbId_groupId: {
-        userId: session.user.id,
-        imdbId: title.imdbId,
-        groupId: targetGroupId,
-      },
-    },
-    update: {
-      review: parsed.data.note?.trim() || null,
-      liked: parsed.data.liked ?? true,
-      groupId: targetGroupId,
-    },
-    create: {
       userId: session.user.id,
       imdbId: title.imdbId,
-      title: title.title,
-      year: title.year,
-      type: title.type,
-      posterUrl: title.posterUrl,
-      review: parsed.data.note?.trim() || null,
-      liked: parsed.data.liked ?? true,
       groupId: targetGroupId,
     },
-    include: {
-      user: {
-        select: { id: true, name: true, image: true },
-      },
-      group: {
-        select: { id: true, name: true, slug: true },
-      },
-    },
+    select: { id: true },
   });
+
+  const includeConfig = {
+    user: {
+      select: { id: true, name: true, image: true },
+    },
+    group: {
+      select: { id: true, name: true, slug: true },
+    },
+  } as const;
+
+  type EntryPayload = Prisma.WatchEntryGetPayload<{ include: typeof includeConfig }>;
+
+  const updateExisting = async (id: string) =>
+    prisma.watchEntry.update({
+      where: { id },
+      data: {
+        review: note,
+        liked,
+        groupId: targetGroupId,
+      },
+      include: includeConfig,
+    });
+
+  let entry: EntryPayload;
+  if (existingEntry) {
+    entry = await updateExisting(existingEntry.id);
+  } else {
+    try {
+      entry = await prisma.watchEntry.create({
+        data: {
+          userId: session.user.id,
+          imdbId: title.imdbId,
+          title: title.title,
+          year: title.year,
+          type: title.type,
+          posterUrl: title.posterUrl,
+          review: note,
+          liked,
+          groupId: targetGroupId,
+        },
+        include: includeConfig,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const conflict = await prisma.watchEntry.findFirst({
+          where: {
+            userId: session.user.id,
+            imdbId: title.imdbId,
+            groupId: targetGroupId,
+          },
+          select: { id: true },
+        });
+
+        if (conflict?.id) {
+          entry = await updateExisting(conflict.id);
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
 
   revalidatePath("/");
 

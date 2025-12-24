@@ -1,13 +1,34 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Session } from "next-auth";
-import { AuthButton } from "@/components/auth-button";
 
-export function SiteHeader({ session }: { session: Session | null }) {
+import { AuthButton } from "@/components/auth-button";
+import { NavGroupSwitcher } from "@/components/group-switcher";
+import { ProfileMenu } from "@/components/profile-menu";
+
+type ViewingFeedConfig = {
+  groups: Array<{
+    id: string;
+    name: string;
+    shareCode?: string | null;
+    slug?: string | null;
+  }>;
+  activeCode: string;
+};
+
+type SiteHeaderProps = {
+  session: Session | null;
+  viewingFeed?: ViewingFeedConfig;
+};
+
+export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
+  const homeHref =
+    viewingFeed?.activeCode && viewingFeed.activeCode !== "personal"
+      ? `/?group=${viewingFeed.activeCode}`
+      : "/";
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
       <Link
-        href="/"
+        href={homeHref}
         className="flex items-center gap-3 text-lg font-semibold tracking-[0.3em] uppercase"
       >
         <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl font-black text-glow shadow-lg shadow-brand/50">
@@ -16,20 +37,19 @@ export function SiteHeader({ session }: { session: Session | null }) {
         Watchd
       </Link>
       <div className="flex items-center gap-4">
-        {session?.user?.image ? (
-          <Image
-            src={session.user.image}
-            alt={session.user.name ?? "Profile"}
-            width={40}
-            height={40}
-            className="rounded-2xl border border-white/10"
+        {viewingFeed ? (
+          <NavGroupSwitcher
+            groups={viewingFeed.groups}
+            activeCode={viewingFeed.activeCode}
           />
-        ) : session?.user?.name ? (
-          <span className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-white/80">
-            {session.user.name}
-          </span>
         ) : null}
-        <AuthButton isAuthenticated={Boolean(session?.user)} />
+        {session?.user ? (
+          <ProfileMenu
+            user={{ name: session.user.name, image: session.user.image }}
+          />
+        ) : (
+          <AuthButton isAuthenticated={false} />
+        )}
       </div>
     </header>
   );
