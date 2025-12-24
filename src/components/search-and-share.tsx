@@ -191,7 +191,7 @@ export function SearchAndShare({
               type="text"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search for a title, e.g. Dune Part Two"
+              placeholder="Search for a title, e.g. The Office"
               className="flex-1 rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
             />
             <button
@@ -207,9 +207,9 @@ export function SearchAndShare({
 
         {results.length > 0 ? (
           <ul className="grid gap-4">
-            {results.map((result) => (
+            {results.map((result, index) => (
               <li
-                key={result.imdbId}
+                key={`${result.imdbId}-${index}`}
                 className="rounded-3xl border border-white/5 bg-white/5 p-4 shadow-lg shadow-black/20"
               >
                 <div className="flex flex-col gap-4 md:flex-row">
@@ -274,7 +274,7 @@ export function SearchAndShare({
                         maxLength={500}
                       />
                       <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white/70">
-                        <span>Mark as loved</span>
+                        <span>Mark as liked</span>
                         <input
                           type="checkbox"
                           checked={liked[result.imdbId] ?? true}

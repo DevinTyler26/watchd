@@ -33,7 +33,7 @@ export async function sendInviteEmail(
   const text = `${inviter} invited you to join the ${payload.groupName} circle on Watchd.\n\nJoin instantly: ${inviteLink}\n\nPrefer to paste a token? Use: ${payload.token}`;
   const html = `
     <p>${inviter} invited you to join <strong>${payload.groupName}</strong> on Watchd.</p>
-    <p><a href="${inviteLink}" style="display:inline-block;padding:12px 20px;border-radius:999px;background-color:#ffffff33;color:#000;font-weight:600;text-decoration:none;">Join ${payload.groupName}</a></p>
+    <p><a href="${inviteLink}" style="color:#9ef;">Join ${payload.groupName}</a></p>
     <p style="font-size:13px;color:#999">Prefer manual entry? Use invite token <strong>${payload.token}</strong>.</p>
   `;
 

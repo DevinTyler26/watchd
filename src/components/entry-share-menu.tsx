@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
 type ShareGroup = {
-  id: string;
+  id: string | null;
   name: string;
 };
 
@@ -31,22 +31,27 @@ export function EntryShareMenu({
   );
   const [isPending, startTransition] = useTransition();
 
-  const orderedGroups = useMemo(
-    () => groups.slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [groups]
-  );
+  const orderedGroups = useMemo(() => {
+    const personal = groups.find((group) => group.id === null);
+    const rest = groups
+      .filter((group) => group.id !== null)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return personal ? [personal, ...rest] : rest;
+  }, [groups]);
 
   const handleChange = (value: string) => {
     setSelection(value);
     if (!value) {
       return;
     }
+    const targetId = value === "personal" ? null : value;
     startTransition(() => {
-      void shareToGroup(value);
+      void shareToGroup(targetId);
     });
   };
 
-  const shareToGroup = async (groupId: string) => {
+  const shareToGroup = async (groupId: string | null) => {
     setMessage(null);
     setMessageTone(null);
     try {
@@ -126,7 +131,7 @@ export function EntryShareMenu({
         >
           <option value="">Pick a circle</option>
           {orderedGroups.map((group) => (
-            <option key={group.id} value={group.id}>
+            <option key={group.id ?? "personal"} value={group.id ?? "personal"}>
               {group.name}
             </option>
           ))}

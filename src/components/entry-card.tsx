@@ -21,16 +21,13 @@ export function EntryCard({
   canRemove = false,
   canReact = false,
   shareTargets,
-  canShareFromPersonal = false,
 }: {
   entry: EntryWithUser;
   canRemove?: boolean;
   canReact?: boolean;
-  shareTargets?: Array<{ id: string; name: string }>;
-  canShareFromPersonal?: boolean;
+  shareTargets?: Array<{ id: string | null; name: string }>;
 }) {
-  const canShareEntry =
-    canShareFromPersonal && !entry.groupId && (shareTargets?.length ?? 0) > 0;
+  const canShareEntry = (shareTargets?.length ?? 0) > 0;
 
   return (
     <article className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-6 shadow-xl shadow-black/30">
