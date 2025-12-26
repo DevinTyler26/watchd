@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
@@ -77,6 +78,13 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
           <p className="mt-1 truncate text-sm font-semibold">
             {user.name ?? "Account"}
           </p>
+          <Link
+            href="/notifications"
+            onClick={() => setOpen(false)}
+            className="mt-3 block w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
+          >
+            Notifications
+          </Link>
           <button
             type="button"
             onClick={() => {
