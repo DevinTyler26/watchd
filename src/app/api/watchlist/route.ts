@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { fetchTitleById } from "@/lib/imdb";
 import { prisma } from "@/lib/prisma";
+import { sendGroupUpdateEmail } from "@/lib/email";
 
 const payloadSchema = z.object({
   imdbId: z.string().min(2, "IMDb id is required"),
@@ -181,6 +182,35 @@ export async function POST(request: Request) {
   }
 
   revalidatePath("/");
+
+  if (targetGroupId) {
+    const subscribers = await prisma.groupNotificationPreference.findMany({
+      where: {
+        groupId: targetGroupId,
+        instant: true,
+        userId: { not: session.user.id },
+      },
+      select: {
+        user: { select: { email: true, name: true } },
+      },
+    });
+
+    const addedBy = session.user.name ?? "Someone";
+    await Promise.all(
+      subscribers
+        .map((sub) => sub.user?.email)
+        .filter(Boolean)
+        .map((email) =>
+          sendGroupUpdateEmail({
+            to: email as string,
+            groupName: entry.group?.name ?? "Your circle",
+            title: entry.title,
+            addedBy,
+            note,
+          })
+        )
+    );
+  }
 
   return NextResponse.json({ entry });
 }

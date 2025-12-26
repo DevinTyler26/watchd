@@ -22,6 +22,7 @@ model User {
   watchEntries     WatchEntry[]
   entryReactions   WatchEntryReaction[]
   heroDismissedAt  DateTime?
+  notificationPrefs GroupNotificationPreference[]
 }
 
 model Account {
@@ -91,6 +92,7 @@ model Group {
   invites      GroupInvite[]
   memberships  GroupMembership[]
   watchEntries WatchEntry[]
+  notificationPrefs GroupNotificationPreference[]
 }
 
 model GroupMembership {
@@ -102,6 +104,20 @@ model GroupMembership {
   createdAt DateTime              @default(now())
   group     Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User                  @relation("GroupMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model GroupNotificationPreference {
+  id         String   @id @default(cuid())
+  groupId    String
+  userId     String
+  instant    Boolean  @default(false)
+  weekly     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
 }
