@@ -31,7 +31,7 @@ export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
         href={homeHref}
         className="flex items-center gap-3 text-lg font-semibold tracking-[0.3em] uppercase"
       >
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl font-black text-glow shadow-lg shadow-brand/50">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl font-black leading-none text-glow shadow-lg shadow-brand/50 translate-y-[1px] translate-x-[0.5px]">
           W
         </span>
         Watchd
@@ -50,6 +50,7 @@ export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
               image: session.user.image,
               role: session.user.role,
             }}
+            activeCircleCode={viewingFeed?.activeCode}
           />
         ) : (
           <AuthButton isAuthenticated={false} />

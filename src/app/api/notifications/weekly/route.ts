@@ -6,10 +6,14 @@ import { sendWeeklySummaryEmail } from "@/lib/email";
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
-  const secret = process.env.NOTIFICATIONS_CRON_SECRET;
+  const secret = process.env.NOTIFICATIONS_CRON_SECRET ?? process.env.CRON_SECRET;
   const headerSecret = request.headers.get("x-cron-secret");
+  const authHeader = request.headers.get("authorization");
+  const bearerSecret = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
 
-  if (!secret || headerSecret !== secret) {
+  if (!secret || (headerSecret !== secret && bearerSecret !== secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

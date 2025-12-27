@@ -103,6 +103,12 @@ export async function POST(
     );
   }
 
+  await prisma.groupAllowlist.upsert({
+    where: { email: normalizedEmail },
+    update: {},
+    create: { email: normalizedEmail, createdById: session.user.id },
+  });
+
   const invite = await prisma.groupInvite.create({
     data: {
       groupId,

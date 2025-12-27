@@ -91,9 +91,32 @@ export async function sendInviteEmail(
   const subject = `${inviter} invited you to ${payload.groupName} on Watchd`;
   const text = `${inviter} invited you to join the ${payload.groupName} circle on Watchd.\n\nJoin instantly: ${inviteLink}\n\nPrefer to paste a token? Use: ${payload.token}`;
   const html = `
-    <p>${inviter} invited you to join <strong>${payload.groupName}</strong> on Watchd.</p>
-    <p><a href="${inviteLink}" style="color:#9ef;">Join ${payload.groupName}</a></p>
-    <p style="font-size:13px;color:#999">Prefer manual entry? Use invite token <strong>${payload.token}</strong>.</p>
+    <div style="max-width:640px; margin:0 auto; padding:20px; font-family:Inter, system-ui, -apple-system, sans-serif; background:#0b1222; color:#e6f0ff;">
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:linear-gradient(120deg, #0f1f3a, #13294d); border:1px solid #203154;">
+          <div style="width:40px; height:40px; border-radius:12px; background:#9ef; color:#0b1222; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1;">W</div>
+        <div>
+          <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#9ecbff;">Circle invite</div>
+          <div style="font-size:18px; font-weight:700;">${payload.groupName} on Watchd</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; padding:18px 16px; border-radius:14px; background:#0f1628; border:1px solid #243044;">
+        <p style="margin:0 0 12px 0; font-size:15px; color:#cdd5e1;">${inviter} invited you to join <strong>${payload.groupName}</strong>. Jump in to see what your circle is watching.</p>
+        <div style="text-align:center; margin:18px 0;">
+          <a href="${inviteLink}" style="display:inline-block; padding:12px 20px; border-radius:12px; background:#9ef; color:#0b1222; font-weight:800; text-decoration:none; letter-spacing:0.08em; text-transform:uppercase;">Accept invite</a>
+        </div>
+        <p style="margin:0 0 10px 0; font-size:13px; color:#9fb2cc;">If the button does not work, open this link:</p>
+        <p style="margin:0 0 16px 0; word-break:break-all;"><a href="${inviteLink}" style="color:#9ef; text-decoration:none;">${inviteLink}</a></p>
+        <div style="padding:12px; border-radius:12px; background:#0b1222; border:1px dashed #2a3a53;">
+          <p style="margin:0 0 6px 0; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#9fb2cc;">Invite token</p>
+          <p style="margin:0; font-size:16px; font-weight:700; letter-spacing:0.06em; color:#e6f0ff;">${payload.token}</p>
+        </div>
+      </div>
+
+      <div style="margin-top:18px; text-align:center;">
+        <p style="margin:0; font-size:12px; color:#8aa2c2;">Watchd helps friends stay in sync on what to watch next.</p>
+      </div>
+    </div>
   `;
   return sendEmail({
     to: payload.to,
@@ -177,8 +200,8 @@ export async function sendWeeklySummaryEmail(
 
   const html = `
     <div style="max-width:640px; margin:0 auto; padding:20px; font-family:Inter, system-ui, -apple-system, sans-serif; background:#0b1222; color:#e6f0ff;">
-      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:linear-gradient(120deg, #0f1f3a, #13294d); border:1px solid #203154;">
-        <div style="width:40px; height:40px; border-radius:12px; background:#9ef; color:#0b1222; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px;">W</div>
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:linear-gradient(120deg, #0f1f3a, #13294d); border:1px solid #203154;">
+          <div style="width:40px; height:40px; border-radius:12px; background:#9ef; color:#0b1222; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1;">W</div>
         <div>
           <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#9ecbff;">Weekly Drop</div>
           <div style="font-size:18px; font-weight:700;">Here is what landed in your circles</div>

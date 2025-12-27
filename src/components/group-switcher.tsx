@@ -63,15 +63,18 @@ export function GroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
           </option>
         ))}
       </select>
-      {isPending ? (
-        <span className="text-xs uppercase tracking-[0.3em] text-white/40">
-          Switching…
-        </span>
-      ) : !hasGroups ? (
-        <span className="text-xs text-white/50">
-          Create a group below to share with your circle.
-        </span>
-      ) : null}
+      <div className="flex h-4 items-center text-xs">
+        {isPending ? (
+          <span className="flex items-center gap-2 text-white/50">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden />
+            <span className="sr-only">Switching feed</span>
+          </span>
+        ) : !hasGroups ? (
+          <span className="text-white/50">
+            Create a group below to share with your circle.
+          </span>
+        ) : null}
+      </div>
     </label>
   );
 }
@@ -130,11 +133,14 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
         <span className="text-white/50">▾</span>
       </button>
 
-      {isPending ? (
-        <span className="text-xs uppercase tracking-[0.3em] text-white/40">
-          Switching…
-        </span>
-      ) : null}
+      <div className="flex h-4 items-center text-xs">
+        {isPending ? (
+          <span className="flex items-center gap-2 text-white/50">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden />
+            <span className="sr-only">Switching feed</span>
+          </span>
+        ) : null}
+      </div>
 
       {isOpen ? (
         <div className="fixed inset-0 z-50 flex items-end sm:hidden">

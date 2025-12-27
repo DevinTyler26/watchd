@@ -11,6 +11,7 @@ type ProfileMenuProps = {
     image?: string | null;
     role?: "USER" | "ADMIN";
   };
+  activeCircleCode?: string;
 };
 
 function getInitials(name?: string | null) {
@@ -26,9 +27,13 @@ function getInitials(name?: string | null) {
   return (pieces[0][0] + pieces[pieces.length - 1][0]).toUpperCase();
 }
 
-export function ProfileMenu({ user }: ProfileMenuProps) {
+export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const circlesHref =
+    activeCircleCode && activeCircleCode !== "personal"
+      ? `/circles?group=${activeCircleCode}`
+      : "/circles";
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -99,6 +104,14 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
               className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               <span>Notifications</span>
+              <span aria-hidden>→</span>
+            </Link>
+            <Link
+              href={circlesHref}
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+            >
+              <span>Manage circles</span>
               <span aria-hidden>→</span>
             </Link>
             <button
