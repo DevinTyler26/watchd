@@ -31,6 +31,7 @@ export type ImdbTitle = {
   type: "movie" | "series" | "episode";
   posterUrl?: string;
   plot?: string;
+  raw?: Record<string, unknown>;
 };
 
 function requireApiKey() {
@@ -56,6 +57,7 @@ function toTitle(payload: OmdbTitleResponse | OmdbSearchItem): ImdbTitle {
     posterUrl: payload.Poster && payload.Poster !== "N/A" ? payload.Poster : undefined,
     type: normalizeType(payload.Type),
     plot: "Plot" in payload ? payload.Plot : undefined,
+    raw: "Response" in payload ? (payload as Record<string, unknown>) : undefined,
   };
 }
 
@@ -96,5 +98,5 @@ export async function fetchTitleById(imdbId: string): Promise<ImdbTitle | null> 
     return null;
   }
 
-  return toTitle(data);
+  return { ...toTitle(data), raw: data as Record<string, unknown> };
 }

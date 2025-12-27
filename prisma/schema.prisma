@@ -25,6 +25,7 @@ model User {
   heroDismissedAt  DateTime?
   notificationPrefs GroupNotificationPreference[]
   allowlistEntries GroupAllowlist[]   @relation("AllowlistCreator")
+  comments         WatchEntryComment[]
 }
 
 model Account {
@@ -68,7 +69,8 @@ model WatchEntry {
   title     String
   year      String?
   posterUrl String?
-  type      String
+  type      String            @default("movie")
+  omdb      Json?
   review    String?
   liked     Boolean           @default(true)
   createdAt DateTime          @default(now())
@@ -77,6 +79,7 @@ model WatchEntry {
   group     Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   reactions WatchEntryReaction[]
+  comments  WatchEntryComment[]
 
   @@unique([userId, imdbId, groupId])
   @@unique([groupId, imdbId])
@@ -144,6 +147,20 @@ model GroupAllowlist {
   createdAt   DateTime @default(now())
   createdById String?
   createdBy   User?    @relation("AllowlistCreator", fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+model WatchEntryComment {
+  id        String   @id @default(cuid())
+  entryId   String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entry WatchEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
 }
 
 model WatchEntryReaction {

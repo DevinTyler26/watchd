@@ -341,6 +341,8 @@ export default async function Home({
                     entry={entry}
                     canRemove={session?.user?.id === entry.userId}
                     canReact={Boolean(session?.user)}
+                    canComment={Boolean(session?.user)}
+                    currentUserId={session?.user?.id}
                     shareTargets={shareTargets}
                   />
                 </div>
