@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       where: { id },
       data: {
         review: note,
-        omdb: title.raw ?? null,
+        omdb: title.raw ?? undefined,
         liked,
         groupId: targetGroupId,
       },
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
           year: title.year,
           type: title.type,
           posterUrl: title.posterUrl,
-          omdb: title.raw ?? null,
+          omdb: title.raw ?? undefined,
           review: note,
           liked,
           groupId: targetGroupId,
