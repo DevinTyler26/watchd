@@ -110,6 +110,8 @@ export async function POST(request: Request) {
     select: { id: true },
   });
 
+  const omdbPayload = title.raw as Prisma.InputJsonValue | undefined;
+
   const includeConfig = {
     user: {
       select: { id: true, name: true, image: true },
@@ -126,6 +128,7 @@ export async function POST(request: Request) {
       where: { id },
       data: {
         review: note,
+        omdb: omdbPayload,
         liked,
         groupId: targetGroupId,
       },
@@ -145,6 +148,7 @@ export async function POST(request: Request) {
           year: title.year,
           type: title.type,
           posterUrl: title.posterUrl,
+          omdb: omdbPayload,
           review: note,
           liked,
           groupId: targetGroupId,
