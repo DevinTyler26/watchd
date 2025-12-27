@@ -28,6 +28,14 @@ type WeeklySummaryEmailInput = {
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+function ensureHttpUrl(value: string) {
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  return `https://${value.replace(/^\/+/, "")}`;
+}
+
 async function sendEmail(payload: {
   to: string;
   subject: string;
@@ -75,17 +83,20 @@ async function sendEmail(payload: {
 }
 
 export async function sendInviteEmail(
-  payload: InviteEmailInput,
+  payload: InviteEmailInput
 ): Promise<{ sent: boolean }> {
   const inviteLinkBase =
     process.env.INVITE_LINK_BASE_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
     process.env.NEXTAUTH_URL ??
     "http://localhost:3000";
-  const normalizedBase = inviteLinkBase.endsWith("/")
+  const normalizedBaseRaw = inviteLinkBase.endsWith("/")
     ? inviteLinkBase.slice(0, -1)
     : inviteLinkBase;
-  const inviteLink = `${normalizedBase}/circles?invite=${encodeURIComponent(payload.token)}`;
+  const normalizedBase = ensureHttpUrl(normalizedBaseRaw);
+  const inviteLink = `${normalizedBase}/circles?invite=${encodeURIComponent(
+    payload.token
+  )}`;
 
   const inviter = payload.inviterName?.trim() || "A friend";
   const subject = `${inviter} invited you to ${payload.groupName} on Watchd`;
@@ -127,7 +138,7 @@ export async function sendInviteEmail(
 }
 
 export async function sendGroupUpdateEmail(
-  payload: GroupUpdateEmailInput,
+  payload: GroupUpdateEmailInput
 ): Promise<{ sent: boolean }> {
   const subject = `${payload.addedBy} shared "${payload.title}" in ${payload.groupName}`;
   const textLines = [
@@ -141,7 +152,9 @@ export async function sendGroupUpdateEmail(
 
   const text = textLines.join("\n\n");
   const html = `
-    <p><strong>${payload.addedBy}</strong> just shared a new title in <strong>${payload.groupName}</strong>.</p>
+    <p><strong>${payload.addedBy}</strong> just shared a new title in <strong>${
+    payload.groupName
+  }</strong>.</p>
     <p style="font-size:16px;font-weight:600;">${payload.title}</p>
     ${payload.note ? `<p style="color:#999">${payload.note}</p>` : ""}
     <p style="font-size:13px;color:#999">Open Watchd to react or comment.</p>
@@ -156,7 +169,7 @@ export async function sendGroupUpdateEmail(
 }
 
 export async function sendWeeklySummaryEmail(
-  payload: WeeklySummaryEmailInput,
+  payload: WeeklySummaryEmailInput
 ): Promise<{ sent: boolean }> {
   if (!payload.items.length) {
     return { sent: true };
@@ -167,7 +180,9 @@ export async function sendWeeklySummaryEmail(
     process.env.NEXTAUTH_URL ??
     "http://localhost:3000";
 
-  const groups = Array.from(new Set(payload.items.map((item) => item.groupName)));
+  const groups = Array.from(
+    new Set(payload.items.map((item) => item.groupName))
+  );
   const subject =
     payload.subject ??
     (groups.length > 1
@@ -175,9 +190,11 @@ export async function sendWeeklySummaryEmail(
       : `${payload.items.length} new titles in ${groups[0]}`);
   const textLines = payload.items.map((item, index) => {
     const rank = index + 1;
-    return `${rank}. [${item.groupName}] ${item.title} — shared by ${item.addedBy}${
-      item.likeCount ? ` (${item.likeCount} likes)` : ""
-    }${item.note ? `\n   Note: ${item.note}` : ""}`;
+    return `${rank}. [${item.groupName}] ${item.title} — shared by ${
+      item.addedBy
+    }${item.likeCount ? ` (${item.likeCount} likes)` : ""}${
+      item.note ? `\n   Note: ${item.note}` : ""
+    }`;
   });
 
   const text =
@@ -188,12 +205,20 @@ export async function sendWeeklySummaryEmail(
     .map((item, index) => {
       const rank = index + 1;
       return `<li style="margin-bottom:12px; padding:12px 14px; border-radius:14px; background:#0f1628; border:1px solid #243044; list-style:none;">
-        <div style="font-size:11px; color:#8bd3ff; letter-spacing:0.12em; text-transform:uppercase;">${item.groupName}</div>
-        <div style="margin-top:6px; font-size:16px; font-weight:700; color:#e6f0ff;">${rank}. ${item.title}</div>
-        <div style="margin-top:4px; font-size:13px; color:#cdd5e1;">Shared by ${item.addedBy}${
-          item.likeCount ? ` · ${item.likeCount} likes` : ""
+        <div style="font-size:11px; color:#8bd3ff; letter-spacing:0.12em; text-transform:uppercase;">${
+          item.groupName
         }</div>
-        ${item.note ? `<div style="margin-top:8px; font-size:13px; color:#9fb2cc; line-height:1.5;">${item.note}</div>` : ""}
+        <div style="margin-top:6px; font-size:16px; font-weight:700; color:#e6f0ff;">${rank}. ${
+        item.title
+      }</div>
+        <div style="margin-top:4px; font-size:13px; color:#cdd5e1;">Shared by ${
+          item.addedBy
+        }${item.likeCount ? ` · ${item.likeCount} likes` : ""}</div>
+        ${
+          item.note
+            ? `<div style="margin-top:8px; font-size:13px; color:#9fb2cc; line-height:1.5;">${item.note}</div>`
+            : ""
+        }
       </li>`;
     })
     .join("");

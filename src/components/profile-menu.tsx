@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 type ProfileMenuProps = {
   user: {
@@ -29,6 +29,7 @@ function getInitials(name?: string | null) {
 
 export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
+  const [isSigningOut, startSigningOut] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
   const circlesHref =
     activeCircleCode && activeCircleCode !== "personal"
@@ -117,12 +118,23 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             <button
               type="button"
               onClick={() => {
-                setOpen(false);
-                void signOut();
+                startSigningOut(() => {
+                  setOpen(false);
+                  void signOut();
+                });
               }}
-              className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              disabled={isSigningOut}
+              className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
             >
-              <span>Sign out</span>
+              <span className="flex items-center gap-2">
+                {isSigningOut ? (
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-transparent"
+                    aria-hidden
+                  />
+                ) : null}
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </span>
               <span aria-hidden>→</span>
             </button>
           </div>
