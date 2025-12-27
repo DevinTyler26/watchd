@@ -24,7 +24,11 @@ type EntryCommentsProps = {
   currentUserId?: string | null;
 };
 
-export function EntryComments({ entryId, canComment, currentUserId }: EntryCommentsProps) {
+export function EntryComments({
+  entryId,
+  canComment,
+  currentUserId,
+}: EntryCommentsProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +60,14 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
                   ...comment,
                   createdAt: comment.createdAt,
                 }))
-              : [],
+              : []
           );
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Unable to load comments");
+          setError(
+            err instanceof Error ? err.message : "Unable to load comments"
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -111,7 +117,8 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
 
   const stackGap = hasComments ? "space-y-2" : "space-y-1";
 
-  const isOwner = (userId: string) => Boolean(currentUserId && currentUserId === userId);
+  const isOwner = (userId: string) =>
+    Boolean(currentUserId && currentUserId === userId);
 
   function startEdit(comment: Comment) {
     setEditingId(comment.id);
@@ -128,17 +135,22 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
     setEditSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/watchlist/${entryId}/comments/${commentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: editDraft.trim() }),
-      });
+      const response = await fetch(
+        `/api/watchlist/${entryId}/comments/${commentId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: editDraft.trim() }),
+        }
+      );
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "Unable to update comment");
       }
       if (payload.comment) {
-        setComments((prev) => prev.map((c) => (c.id === commentId ? payload.comment : c)));
+        setComments((prev) =>
+          prev.map((c) => (c.id === commentId ? payload.comment : c))
+        );
         cancelEdit();
       }
     } catch (err) {
@@ -153,9 +165,12 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
     setDeletingId(commentId);
     setError(null);
     try {
-      const response = await fetch(`/api/watchlist/${entryId}/comments/${commentId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/watchlist/${entryId}/comments/${commentId}`,
+        {
+          method: "DELETE",
+        }
+      );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.error ?? "Unable to delete comment");
@@ -172,9 +187,13 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
   }
 
   return (
-    <div className={`${stackGap} rounded-2xl border border-white/10 bg-night/40 p-3`}>
+    <div
+      className={`${stackGap} rounded-2xl border border-white/10 bg-night/40 p-3`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <p className="mt-1 text-[11px] uppercase tracking-[0.32em] text-white/50">Comments</p>
+        <p className="mt-1 text-[11px] uppercase tracking-[0.32em] text-white/50">
+          Comments
+        </p>
         <div className="flex items-start gap-2 self-start">
           {loading ? (
             <span className="text-[10px] text-white/50">Loading…</span>
@@ -185,7 +204,9 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
               onClick={() => setShowForm(true)}
               className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white transition hover:bg-white/15"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-sm">+</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-sm">
+                +
+              </span>
               Add comment
             </button>
           ) : null}
@@ -217,8 +238,12 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
               )}
               <div className="flex-1 rounded-lg bg-white/5 px-3 py-2">
                 <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-white/40">
-                  <span className="truncate">{comment.user.name ?? "Someone"}</span>
-                  <span>{relativeTimeFromNow(new Date(comment.createdAt))}</span>
+                  <span className="truncate">
+                    {comment.user.name ?? "Someone"}
+                  </span>
+                  <span>
+                    {relativeTimeFromNow(new Date(comment.createdAt))}
+                  </span>
                 </div>
                 {editingId === comment.id ? (
                   <div className="mt-2 space-y-2">
@@ -251,7 +276,9 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
                   </div>
                 ) : (
                   <div className="mt-1 space-y-2">
-                    <p className="text-sm leading-snug text-white/80">{comment.body}</p>
+                    <p className="text-sm leading-snug text-white/80">
+                      {comment.body}
+                    </p>
                     {canComment && isOwner(comment.user.id) ? (
                       <div className="flex gap-3 text-[11px] uppercase tracking-[0.24em] text-white/50">
                         <button
@@ -266,7 +293,9 @@ export function EntryComments({ entryId, canComment, currentUserId }: EntryComme
                           type="button"
                           onClick={() => deleteComment(comment.id)}
                           className="transition hover:text-rose-200"
-                          disabled={deletingId === comment.id || Boolean(editingId)}
+                          disabled={
+                            deletingId === comment.id || Boolean(editingId)
+                          }
                         >
                           {deletingId === comment.id ? "Deleting" : "Delete"}
                         </button>
