@@ -418,13 +418,17 @@ export function GroupManagerPanel({
                   Roles and access for this circle.
                 </p>
               </div>
-              {membersLoading ? (
-                <span className="text-xs text-white/50">Loading...</span>
-              ) : (
-                <span className="text-xs text-white/50">
-                  {members.length} total
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                {membersLoading ? (
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    aria-hidden
+                  />
+                ) : null}
+                <span>
+                  {membersLoading ? "Loading..." : `${members.length} total`}
                 </span>
-              )}
+              </div>
             </div>
             {membersError ? (
               <p className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">

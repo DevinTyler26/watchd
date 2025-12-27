@@ -24,6 +24,11 @@ export const authOptions: NextAuthOptions = {
       clientId: assertEnv("GOOGLE_CLIENT_ID"),
       clientSecret: assertEnv("GOOGLE_CLIENT_SECRET"),
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: "select_account",
+        },
+      },
     }),
   ],
   callbacks: {
@@ -38,7 +43,11 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      const email = (dbUser?.email ?? user.email ?? profile?.email)?.toLowerCase();
+      const email = (
+        dbUser?.email ??
+        user.email ??
+        profile?.email
+      )?.toLowerCase();
       if (!email) {
         return false;
       }
