@@ -9,6 +9,7 @@ type ProfileMenuProps = {
   user: {
     name?: string | null;
     image?: string | null;
+    role?: "USER" | "ADMIN";
   };
 };
 
@@ -51,7 +52,7 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative z-50">
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
@@ -71,30 +72,47 @@ export function ProfileMenu({ user }: ProfileMenuProps) {
         )}
       </button>
       {open ? (
-        <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-white/10 bg-night/90 p-3 text-sm text-white shadow-2xl shadow-black/40">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-            Signed in
-          </p>
-          <p className="mt-1 truncate text-sm font-semibold">
-            {user.name ?? "Account"}
-          </p>
-          <Link
-            href="/notifications"
-            onClick={() => setOpen(false)}
-            className="mt-3 block w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
-          >
-            Notifications
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              void signOut();
-            }}
-            className="mt-3 w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
-          >
-            Sign out
-          </button>
+        <div className="absolute right-0 mt-3 w-64 rounded-2xl border border-white/10 bg-night/80 p-4 text-sm text-white shadow-2xl shadow-black/40 backdrop-blur-xl">
+          <div className="space-y-1">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">
+              Signed in
+            </p>
+            <p className="truncate text-lg font-semibold text-white">
+              {user.name ?? "Account"}
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {user.role === "ADMIN" ? (
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-between rounded-xl bg-emerald/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald/25"
+              >
+                <span>Admin console</span>
+                <span aria-hidden>→</span>
+              </Link>
+            ) : null}
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+            >
+              <span>Notifications</span>
+              <span aria-hidden>→</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                void signOut();
+              }}
+              className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              <span>Sign out</span>
+              <span aria-hidden>→</span>
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

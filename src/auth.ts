@@ -16,6 +16,9 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "database",
   },
+  pages: {
+    error: "/auth/error",
+  },
   providers: [
     Google({
       clientId: assertEnv("GOOGLE_CLIENT_ID"),
@@ -24,9 +27,34 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Admins bypass allowlist.
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { email: true, role: true },
+      });
+
+      if (dbUser?.role === "ADMIN") {
+        return true;
+      }
+
+      const email = (dbUser?.email ?? user.email ?? profile?.email)?.toLowerCase();
+      if (!email) {
+        return false;
+      }
+
+      const allowed = await prisma.groupAllowlist.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+
+      return Boolean(allowed);
+    },
     session: async ({ session, user }) => {
       if (session.user) {
         session.user.id = user.id;
+        // @ts-expect-error custom role from Prisma
+        session.user.role = (user as { role?: string }).role ?? "USER";
       }
       return session;
     },

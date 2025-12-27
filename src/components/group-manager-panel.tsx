@@ -10,6 +10,13 @@ type GroupSummary = {
   role: string;
 };
 
+type MemberEntry = {
+  userId: string;
+  name: string;
+  email: string | null;
+  role: "OWNER" | "EDITOR" | "VIEWER";
+};
+
 type Props = {
   groups: GroupSummary[];
   activeGroupId: string | null;
@@ -26,6 +33,9 @@ export function GroupManagerPanel({
   const router = useRouter();
   const [createName, setCreateName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"OWNER" | "EDITOR" | "VIEWER">(
+    "EDITOR"
+  );
   const [joinToken, setJoinToken] = useState(initialJoinToken ?? "");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [joinSuccess, setJoinSuccess] = useState<{
@@ -35,6 +45,15 @@ export function GroupManagerPanel({
   const [confirmLeave, setConfirmLeave] = useState<GroupSummary | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
   const [autoJoinTriggered, setAutoJoinTriggered] = useState(false);
+  const [members, setMembers] = useState<MemberEntry[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
+
+  const activeGroup = activeGroupId
+    ? groups.find((group) => group.id === activeGroupId) ?? null
+    : null;
+  const isManager = activeGroupRole === "OWNER" || activeGroupRole === "EDITOR";
+  const isOwner = activeGroupRole === "OWNER";
 
   const attemptJoinToken = useCallback(
     async (token: string, options?: { fromLink?: boolean }) => {
@@ -89,6 +108,43 @@ export function GroupManagerPanel({
     void attemptJoinToken(initialJoinToken, { fromLink: true });
   }, [initialJoinToken, autoJoinTriggered, attemptJoinToken]);
 
+  useEffect(() => {
+    if (!activeGroupId) {
+      setMembers([]);
+      return;
+    }
+
+    let cancelled = false;
+    setMembersLoading(true);
+    setMembersError(null);
+
+    fetch(`/api/groups/${activeGroupId}/members`)
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Unable to load members.");
+        }
+        if (!cancelled) {
+          setMembers(payload.members ?? []);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setMembersError(
+            error instanceof Error ? error.message : "Unable to load members."
+          );
+          setMembers([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMembersLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroupId]);
+
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatusMessage(null);
@@ -135,7 +191,7 @@ export function GroupManagerPanel({
       const response = await fetch(`/api/groups/${activeGroupId}/invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email: normalizedEmail, role: inviteRole }),
       });
       const payload = await response.json();
       if (!response.ok) {
@@ -144,6 +200,7 @@ export function GroupManagerPanel({
       }
 
       setInviteEmail("");
+      setInviteRole("EDITOR");
       if (payload.emailSent) {
         setStatusMessage(`Invite sent to ${normalizedEmail}.`);
       } else {
@@ -194,6 +251,52 @@ export function GroupManagerPanel({
     }
   }
 
+  async function updateMemberRole(userId: string, role: MemberEntry["role"]) {
+    if (!activeGroupId) return;
+    setStatusMessage(null);
+    try {
+      const response = await fetch(`/api/groups/${activeGroupId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setStatusMessage(payload.error ?? "Unable to update role.");
+        return;
+      }
+      setMembers((prev) =>
+        prev.map((member) =>
+          member.userId === userId
+            ? { ...member, role: payload.member?.role ?? role }
+            : member
+        )
+      );
+    } catch {
+      setStatusMessage("Network issue updating role.");
+    }
+  }
+
+  async function removeMember(userId: string) {
+    if (!activeGroupId) return;
+    setStatusMessage(null);
+    try {
+      const response = await fetch(`/api/groups/${activeGroupId}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStatusMessage(payload.error ?? "Unable to remove member.");
+        return;
+      }
+      setMembers((prev) => prev.filter((member) => member.userId !== userId));
+    } catch {
+      setStatusMessage("Network issue removing member.");
+    }
+  }
+
   const summaryText =
     groups.length === 0
       ? "No circles yet—start one below."
@@ -204,13 +307,170 @@ export function GroupManagerPanel({
   return (
     <div className="space-y-4">
       <p className="text-sm text-white/60">{summaryText}</p>
-      <div className="grid gap-6 lg:grid-cols-3">
+
+      {statusMessage ? (
+        <p className="rounded-2xl border border-white/10 bg-night/30 p-3 text-center text-sm text-white/80">
+          {statusMessage}
+        </p>
+      ) : null}
+
+      {activeGroup ? (
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-night/30 p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+                Active circle
+              </p>
+              <p className="text-xl font-semibold text-white">
+                {activeGroup.name}
+              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-white/40">
+                {activeGroupRole}
+              </p>
+            </div>
+            {isManager ? (
+              <div className="w-full max-w-sm space-y-2">
+                <form onSubmit={handleInvite} className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                    Invite with role
+                  </p>
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    placeholder="friend@example.com"
+                    className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                  />
+                  <select
+                    value={inviteRole}
+                    onChange={(event) =>
+                      setInviteRole(event.target.value as MemberEntry["role"])
+                    }
+                    className="w-full rounded-2xl border border-white/10 bg-night/60 px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                  >
+                    <option value="EDITOR">Editor</option>
+                    <option value="VIEWER">Viewer</option>
+                    <option value="OWNER" disabled={!isOwner}>
+                      Owner (owners only)
+                    </option>
+                  </select>
+                  <button
+                    type="submit"
+                    className="w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white"
+                  >
+                    Send invite
+                  </button>
+                  <p className="text-xs text-white/50">
+                    Owners can transfer ownership; Editors can invite and manage
+                    roles. Viewers can only view and react.
+                  </p>
+                </form>
+              </div>
+            ) : (
+              <p className="text-sm text-white/60">
+                You can view members but cannot invite or change roles.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-white/10 bg-night/20 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+                  Members
+                </p>
+                <p className="text-sm text-white/60">
+                  Roles and access for this circle.
+                </p>
+              </div>
+              {membersLoading ? (
+                <span className="text-xs text-white/50">Loading...</span>
+              ) : (
+                <span className="text-xs text-white/50">
+                  {members.length} total
+                </span>
+              )}
+            </div>
+            {membersError ? (
+              <p className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                {membersError}
+              </p>
+            ) : null}
+
+            {membersLoading ? null : members.length === 0 ? (
+              <p className="text-sm text-white/60">No members found.</p>
+            ) : (
+              <ul className="space-y-3">
+                {members.map((member) => {
+                  const canManageMember =
+                    activeGroupRole === "OWNER" ||
+                    (activeGroupRole === "EDITOR" && member.role !== "OWNER");
+                  return (
+                    <li
+                      key={member.userId}
+                      className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-night/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {member.name}
+                        </p>
+                        <p className="text-xs text-white/50">
+                          {member.email ?? "No email"}
+                        </p>
+                      </div>
+                      {canManageMember ? (
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <select
+                            value={member.role}
+                            onChange={(event) =>
+                              updateMemberRole(
+                                member.userId,
+                                event.target.value as MemberEntry["role"]
+                              )
+                            }
+                            className="rounded-2xl border border-white/20 bg-night/60 px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                            disabled={member.role === "OWNER" && !isOwner}
+                          >
+                            <option value="OWNER" disabled={!isOwner}>
+                              Owner
+                            </option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="VIEWER">Viewer</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => removeMember(member.userId)}
+                            className="rounded-2xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                            disabled={member.role === "OWNER"}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs uppercase tracking-[0.3em] text-white/40">
+                          {member.role}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/10 bg-night/30 p-4 text-sm text-white/60">
+          Select a circle above to manage members and invites.
+        </div>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
         <form
           onSubmit={handleCreate}
           className="space-y-2 rounded-2xl border border-white/10 bg-night/30 p-4"
         >
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-            Start a group
+            Start a circle
           </p>
           <input
             type="text"
@@ -225,37 +485,6 @@ export function GroupManagerPanel({
           >
             Create
           </button>
-        </form>
-
-        <form
-          onSubmit={handleInvite}
-          className="space-y-2 rounded-2xl border border-white/10 bg-night/30 p-4"
-        >
-          <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-            Invite someone
-          </p>
-          <input
-            type="email"
-            value={inviteEmail}
-            onChange={(event) => setInviteEmail(event.target.value)}
-            placeholder="friend@example.com"
-            className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
-            disabled={!activeGroupId || activeGroupRole !== "OWNER"}
-          />
-          <button
-            type="submit"
-            disabled={!activeGroupId || activeGroupRole !== "OWNER"}
-            className="w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white disabled:opacity-40"
-          >
-            Send invite
-          </button>
-          {!activeGroupId ? (
-            <p className="text-xs text-white/50">
-              Select a group to invite people.
-            </p>
-          ) : activeGroupRole !== "OWNER" ? (
-            <p className="text-xs text-white/50">Only owners can invite.</p>
-          ) : null}
         </form>
 
         <form
@@ -276,15 +505,9 @@ export function GroupManagerPanel({
             type="submit"
             className="w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white"
           >
-            Join group
+            Join circle
           </button>
         </form>
-
-        {statusMessage ? (
-          <p className="lg:col-span-3 rounded-2xl border border-white/10 bg-night/30 p-3 text-center text-sm text-white/80">
-            {statusMessage}
-          </p>
-        ) : null}
       </div>
 
       <div className="space-y-4 rounded-2xl border border-white/10 bg-night/30 p-4">
@@ -294,7 +517,7 @@ export function GroupManagerPanel({
               Your circles
             </p>
             <p className="text-sm text-white/60">
-              Leave any group you no longer want to follow.
+              Leave any circle you no longer want to follow.
             </p>
           </div>
           <span className="text-xs text-white/50">{groups.length} joined</span>
@@ -311,7 +534,7 @@ export function GroupManagerPanel({
                     {group.name}
                   </p>
                   <p className="text-xs uppercase tracking-[0.3em] text-white/40">
-                    {group.role === "OWNER" ? "Owner" : "Member"}
+                    {group.role}
                   </p>
                 </div>
                 {group.role === "OWNER" ? (
@@ -327,7 +550,7 @@ export function GroupManagerPanel({
                     }}
                     className="rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
-                    Leave group
+                    Leave circle
                   </button>
                 )}
               </li>

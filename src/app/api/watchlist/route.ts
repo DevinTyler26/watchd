@@ -72,6 +72,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (membership.role === "VIEWER") {
+      return NextResponse.json(
+        { error: "View-only members cannot add titles to this group." },
+        { status: 403 },
+      );
+    }
+
     const existingInGroup = await prisma.watchEntry.findFirst({
       where: {
         groupId: targetGroupId,
@@ -247,6 +254,13 @@ export async function DELETE(request: Request) {
     if (!membership || membership.status !== "ACTIVE") {
       return NextResponse.json(
         { error: "You are not part of that group." },
+        { status: 403 },
+      );
+    }
+
+    if (membership.role === "VIEWER") {
+      return NextResponse.json(
+        { error: "View-only members cannot remove titles from this group." },
         { status: 403 },
       );
     }

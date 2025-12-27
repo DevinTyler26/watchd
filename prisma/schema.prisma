@@ -10,6 +10,7 @@ model User {
   id               String            @id @default(cuid())
   name             String?
   email            String?           @unique
+  role             UserRole          @default(USER)
   emailVerified    DateTime?
   image            String?
   createdAt        DateTime          @default(now())
@@ -23,6 +24,7 @@ model User {
   entryReactions   WatchEntryReaction[]
   heroDismissedAt  DateTime?
   notificationPrefs GroupNotificationPreference[]
+  allowlistEntries GroupAllowlist[]   @relation("AllowlistCreator")
 }
 
 model Account {
@@ -99,7 +101,7 @@ model GroupMembership {
   id        String                @id @default(cuid())
   groupId   String
   userId    String
-  role      GroupRole             @default(MEMBER)
+  role      GroupRole             @default(EDITOR)
   status    GroupMembershipStatus @default(ACTIVE)
   createdAt DateTime              @default(now())
   group     Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -130,9 +132,18 @@ model GroupInvite {
   expiresAt   DateTime?
   createdById String
   acceptedAt  DateTime?
+  inviteRole  GroupRole @default(EDITOR)
   createdAt   DateTime  @default(now())
   createdBy   User      @relation("GroupInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
   group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model GroupAllowlist {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("AllowlistCreator", fields: [createdById], references: [id], onDelete: SetNull)
 }
 
 model WatchEntryReaction {
@@ -153,9 +164,15 @@ enum EntryReactionType {
   DISLIKE
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 enum GroupRole {
   OWNER
-  MEMBER
+  EDITOR
+  VIEWER
 }
 
 enum GroupMembershipStatus {

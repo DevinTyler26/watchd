@@ -9,6 +9,7 @@ import { sendInviteEmail } from "@/lib/email";
 
 const inviteSchema = z.object({
   email: z.string().email(),
+  role: z.enum(["OWNER", "EDITOR", "VIEWER"]).optional(),
 });
 
 export async function POST(
@@ -41,9 +42,14 @@ export async function POST(
     },
   });
 
-  if (!membership || membership.role !== "OWNER" || membership.status !== "ACTIVE") {
+  const canInvite =
+    membership &&
+    membership.status === "ACTIVE" &&
+    (membership.role === "OWNER" || membership.role === "EDITOR");
+
+  if (!canInvite) {
     return NextResponse.json(
-      { error: "Only owners can invite members." },
+      { error: "Only owners or editors can invite members." },
       { status: 403 },
     );
   }
@@ -88,6 +94,15 @@ export async function POST(
     }
   }
 
+  const inviteRole = parsed.data.role ?? "EDITOR";
+
+  if (inviteRole === "OWNER" && membership.role !== "OWNER") {
+    return NextResponse.json(
+      { error: "Only the current owner can invite another owner." },
+      { status: 403 },
+    );
+  }
+
   const invite = await prisma.groupInvite.create({
     data: {
       groupId,
@@ -95,6 +110,7 @@ export async function POST(
       token,
       expiresAt,
       createdById: session.user.id,
+      inviteRole,
     },
   });
 
