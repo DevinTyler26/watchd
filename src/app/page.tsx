@@ -330,16 +330,20 @@ export default async function Home({
           </div>
           {entries.length > 0 ? (
             <div className="grid gap-6">
-              {entries.map((entry) => (
-                <EntryCard
-                  entry={entry}
-                  canRemove={session?.user?.id === entry.userId}
-                  canReact={Boolean(session?.user)}
-                  shareTargets={shareTargets}
+              {entries.map((entry, index) => (
+                <div
                   key={`${entry.userId}-${entry.imdbId}-${
                     entry.groupId ?? "personal"
                   }`}
-                />
+                  id={index === 0 ? "latest-entry" : undefined}
+                >
+                  <EntryCard
+                    entry={entry}
+                    canRemove={session?.user?.id === entry.userId}
+                    canReact={Boolean(session?.user)}
+                    shareTargets={shareTargets}
+                  />
+                </div>
               ))}
             </div>
           ) : (

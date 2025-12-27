@@ -42,7 +42,9 @@ function resolveError(searchParams?: { error?: string | string[] }) {
 export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string | string[] }> | { error?: string | string[] };
+  searchParams?:
+    | Promise<{ error?: string | string[] }>
+    | { error?: string | string[] };
 }) {
   const resolvedParams =
     searchParams && isPromise(searchParams)
@@ -56,7 +58,7 @@ export default async function AuthErrorPage({
         <header className="flex items-center gap-3 text-lg font-semibold tracking-[0.3em] uppercase">
           <Link
             href="/"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl font-black text-glow shadow-lg shadow-brand/50"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xl font-black leading-none text-glow shadow-lg shadow-brand/50 translate-y-[1px] translate-x-[0.5px]"
             aria-label="Back to home"
           >
             W

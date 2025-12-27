@@ -44,6 +44,13 @@ export function GroupManagerPanel({
   } | null>(null);
   const [confirmLeave, setConfirmLeave] = useState<GroupSummary | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [pendingOwnershipChange, setPendingOwnershipChange] = useState<{
+    userId: string;
+    name: string;
+  } | null>(null);
   const [autoJoinTriggered, setAutoJoinTriggered] = useState(false);
   const [members, setMembers] = useState<MemberEntry[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -187,6 +194,7 @@ export function GroupManagerPanel({
       return;
     }
 
+    setIsInviting(true);
     try {
       const response = await fetch(`/api/groups/${activeGroupId}/invite`, {
         method: "POST",
@@ -208,6 +216,8 @@ export function GroupManagerPanel({
       }
     } catch {
       setStatusMessage("Network issue sending the invite.");
+    } finally {
+      setIsInviting(false);
     }
   }
 
@@ -254,6 +264,7 @@ export function GroupManagerPanel({
   async function updateMemberRole(userId: string, role: MemberEntry["role"]) {
     if (!activeGroupId) return;
     setStatusMessage(null);
+    setRoleUpdatingId(userId);
     try {
       const response = await fetch(`/api/groups/${activeGroupId}/members`, {
         method: "PATCH",
@@ -274,12 +285,23 @@ export function GroupManagerPanel({
       );
     } catch {
       setStatusMessage("Network issue updating role.");
+    } finally {
+      setRoleUpdatingId(null);
     }
+  }
+
+  function handleRoleChange(member: MemberEntry, role: MemberEntry["role"]) {
+    if (role === "OWNER" && member.role !== "OWNER" && isOwner) {
+      setPendingOwnershipChange({ userId: member.userId, name: member.name });
+      return;
+    }
+    void updateMemberRole(member.userId, role);
   }
 
   async function removeMember(userId: string) {
     if (!activeGroupId) return;
     setStatusMessage(null);
+    setRemovingId(userId);
     try {
       const response = await fetch(`/api/groups/${activeGroupId}/members`, {
         method: "DELETE",
@@ -294,6 +316,8 @@ export function GroupManagerPanel({
       setMembers((prev) => prev.filter((member) => member.userId !== userId));
     } catch {
       setStatusMessage("Network issue removing member.");
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -346,7 +370,7 @@ export function GroupManagerPanel({
                     onChange={(event) =>
                       setInviteRole(event.target.value as MemberEntry["role"])
                     }
-                    className="w-full rounded-2xl border border-white/10 bg-night/60 px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                    className="w-full rounded-2xl border border-white/10 bg-night/60 pl-4 pr-10 py-2 text-sm text-white focus:border-brand focus:outline-none"
                   >
                     <option value="EDITOR">Editor</option>
                     <option value="VIEWER">Viewer</option>
@@ -356,9 +380,20 @@ export function GroupManagerPanel({
                   </select>
                   <button
                     type="submit"
-                    className="w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white"
+                    disabled={isInviting}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Send invite
+                    {isInviting ? (
+                      <>
+                        <span
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                          aria-hidden
+                        />
+                        Sending...
+                      </>
+                    ) : (
+                      "Send invite"
+                    )}
                   </button>
                   <p className="text-xs text-white/50">
                     Owners can transfer ownership; Editors can invite and manage
@@ -402,9 +437,10 @@ export function GroupManagerPanel({
             ) : (
               <ul className="space-y-3">
                 {members.map((member) => {
+                  const isOwnerMember = member.role === "OWNER";
                   const canManageMember =
                     activeGroupRole === "OWNER" ||
-                    (activeGroupRole === "EDITOR" && member.role !== "OWNER");
+                    (activeGroupRole === "EDITOR" && !isOwnerMember);
                   return (
                     <li
                       key={member.userId}
@@ -419,33 +455,59 @@ export function GroupManagerPanel({
                         </p>
                       </div>
                       {canManageMember ? (
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <select
-                            value={member.role}
-                            onChange={(event) =>
-                              updateMemberRole(
-                                member.userId,
-                                event.target.value as MemberEntry["role"]
-                              )
-                            }
-                            className="rounded-2xl border border-white/20 bg-night/60 px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
-                            disabled={member.role === "OWNER" && !isOwner}
-                          >
-                            <option value="OWNER" disabled={!isOwner}>
+                        isOwnerMember ? (
+                          <div className="space-y-1 text-right sm:ml-auto sm:text-right">
+                            <span className="inline-flex rounded-2xl border border-white/20 bg-night/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
                               Owner
-                            </option>
-                            <option value="EDITOR">Editor</option>
-                            <option value="VIEWER">Viewer</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => removeMember(member.userId)}
-                            className="rounded-2xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                            disabled={member.role === "OWNER"}
-                          >
-                            Remove
-                          </button>
-                        </div>
+                            </span>
+                            <p className="text-[11px] text-white/40">
+                              Promote someone else to transfer ownership.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="space-y-1">
+                              <select
+                                value={member.role}
+                                onChange={(event) =>
+                                  handleRoleChange(
+                                    member,
+                                    event.target.value as MemberEntry["role"]
+                                  )
+                                }
+                                className="rounded-2xl border border-white/20 bg-night/60 pl-3 pr-10 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={
+                                  roleUpdatingId === member.userId ||
+                                  removingId === member.userId
+                                }
+                              >
+                                <option value="OWNER" disabled={!isOwner}>
+                                  Owner
+                                </option>
+                                <option value="EDITOR">Editor</option>
+                                <option value="VIEWER">Viewer</option>
+                              </select>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeMember(member.userId)}
+                              className="flex items-center gap-2 rounded-2xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={removingId === member.userId}
+                            >
+                              {removingId === member.userId ? (
+                                <>
+                                  <span
+                                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                                    aria-hidden
+                                  />
+                                  Removing...
+                                </>
+                              ) : (
+                                "Remove"
+                              )}
+                            </button>
+                          </div>
+                        )
                       ) : (
                         <span className="text-xs uppercase tracking-[0.3em] text-white/40">
                           {member.role}
@@ -629,6 +691,47 @@ export function GroupManagerPanel({
                 className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isLeaving ? "Leaving..." : "Leave group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingOwnershipChange ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
+          <div className="w-full max-w-md rounded-3xl border border-amber-400/30 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
+            <p className="text-xs uppercase tracking-[0.4em] text-amber-200">
+              Transfer ownership
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">
+              Make {pendingOwnershipChange.name} the owner?
+            </h3>
+            <p className="mt-3 text-sm text-white/70">
+              Owners control invites, roles, and removal rights. You will lose
+              owner-only powers after this change.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setPendingOwnershipChange(null)}
+                disabled={roleUpdatingId === pendingOwnershipChange.userId}
+                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!pendingOwnershipChange) return;
+                  void updateMemberRole(pendingOwnershipChange.userId, "OWNER");
+                  setPendingOwnershipChange(null);
+                }}
+                disabled={roleUpdatingId === pendingOwnershipChange.userId}
+                className="flex-1 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {roleUpdatingId === pendingOwnershipChange.userId
+                  ? "Transferring..."
+                  : "Confirm transfer"}
               </button>
             </div>
           </div>

@@ -105,7 +105,7 @@ export function EntryCard({
           </div>
           <p className="rounded-2xl bg-night/60 p-4 text-sm text-white/80">
             {entry.review ??
-              (entry.liked ? "Loved it!" : "Mixed feelings but worth noting.")}
+              (entry.liked ? "Liked it!" : "Mixed feelings but worth noting.")}
           </p>
           <p className="text-xs font-mono uppercase tracking-[0.5em] text-white/40">
             {entry.liked ? "LIKED" : "ON THE FENCE"}

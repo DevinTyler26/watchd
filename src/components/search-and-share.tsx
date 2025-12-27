@@ -62,14 +62,35 @@ export function SearchAndShare({
 
   const scrollToFeed = () => {
     setConfirmation(null);
+    clearSearch();
     if (typeof window === "undefined") {
       return;
     }
-    const feed = document.getElementById("signal-feed");
-    feed?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const scrollToLatest = () => {
+      const latest = document.getElementById("latest-entry");
+      if (latest) {
+        latest.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      const feed = document.getElementById("signal-feed");
+      feed?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    // Wait for search results to clear and layout to settle before scrolling.
+    requestAnimationFrame(() => requestAnimationFrame(scrollToLatest));
   };
 
   const disabled = useMemo(() => query.trim().length < 2, [query]);
+
+  function clearSearch() {
+    setQuery("");
+    setResults([]);
+    setHasSearched(false);
+    setError(null);
+    setActionState({ status: "idle" });
+    setNotes({});
+    setLiked({});
+  }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -194,13 +215,23 @@ export function SearchAndShare({
               placeholder="Search for a title, e.g. The Office"
               className="flex-1 rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
             />
-            <button
-              type="submit"
-              disabled={disabled || isSearching}
-              className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSearching ? "Searching…" : "Pull from IMDb"}
-            </button>
+            <div className="flex items-center gap-2 sm:w-64">
+              <button
+                type="submit"
+                disabled={disabled || isSearching}
+                className="flex-1 rounded-2xl bg-brand px-6 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSearching ? "Searching…" : "Pull from IMDb"}
+              </button>
+              <button
+                type="button"
+                onClick={clearSearch}
+                disabled={!hasSearched && !results.length && !query}
+                className="h-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Clear
+              </button>
+            </div>
           </div>
           {error && <p className="text-sm text-red-300">{error}</p>}
         </form>
