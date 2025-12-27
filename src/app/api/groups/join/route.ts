@@ -15,6 +15,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
+  const userId = session.user.id;
+
   const body = await request.json().catch(() => ({}));
   const parsed = joinSchema.safeParse(body);
 
@@ -37,30 +39,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invite expired." }, { status: 410 });
   }
 
-  await prisma.groupInvite.update({
-    where: { id: invite.id },
-    data: { acceptedAt: new Date() },
-  });
+  const roleToAssign = invite.inviteRole ?? "EDITOR";
 
-  await prisma.groupMembership.upsert({
-    where: {
-      groupId_userId: {
-        groupId: invite.groupId,
-        userId: session.user.id,
+  const group = await prisma.$transaction(async (tx) => {
+    await tx.groupInvite.update({
+      where: { id: invite.id },
+      data: { acceptedAt: new Date() },
+    });
+
+    const createdMembership = await tx.groupMembership.upsert({
+      where: {
+        groupId_userId: {
+          groupId: invite.groupId,
+          userId,
+        },
       },
-    },
-    update: { status: "ACTIVE" },
-    create: {
-      groupId: invite.groupId,
-      userId: session.user.id,
-      role: "MEMBER",
-      status: "ACTIVE",
-    },
-  });
+      update: { status: "ACTIVE", role: roleToAssign },
+      create: {
+        groupId: invite.groupId,
+        userId,
+        role: roleToAssign,
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
 
-  const group = await prisma.group.findUnique({
-    where: { id: invite.groupId },
-    select: { id: true, name: true, slug: true, shareCode: true },
+    if (roleToAssign === "OWNER") {
+      const currentOwner = await tx.group.findUnique({
+        where: { id: invite.groupId },
+        select: { ownerId: true },
+      });
+
+      if (currentOwner?.ownerId && currentOwner.ownerId !== userId) {
+        await tx.groupMembership.updateMany({
+          where: { groupId: invite.groupId, userId: currentOwner.ownerId },
+          data: { role: "EDITOR" },
+        });
+      }
+
+      await tx.group.update({
+        where: { id: invite.groupId },
+        data: { ownerId: userId },
+      });
+    }
+
+    return tx.group.findUnique({
+      where: { id: invite.groupId },
+      select: { id: true, name: true, slug: true, shareCode: true },
+    });
   });
 
   if (!group) {

@@ -45,7 +45,11 @@ export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
         ) : null}
         {session?.user ? (
           <ProfileMenu
-            user={{ name: session.user.name, image: session.user.image }}
+            user={{
+              name: session.user.name,
+              image: session.user.image,
+              role: session.user.role,
+            }}
           />
         ) : (
           <AuthButton isAuthenticated={false} />
