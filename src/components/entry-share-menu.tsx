@@ -139,6 +139,14 @@ export function EntryShareMenu({
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-white/60">
           ▾
         </span>
+        {isPending ? (
+          <span className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2">
+            <span
+              className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+              aria-hidden
+            />
+          </span>
+        ) : null}
       </div>
     </div>
   );

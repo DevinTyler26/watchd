@@ -92,7 +92,17 @@ export function RemoveEntryButton({
                 disabled={isPending}
                 className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isPending ? "Removing..." : "Yes, remove"}
+                {isPending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                      aria-hidden
+                    />
+                    Removing...
+                  </span>
+                ) : (
+                  "Yes, remove"
+                )}
               </button>
             </div>
           </div>
