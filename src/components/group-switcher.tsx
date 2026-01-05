@@ -143,13 +143,13 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
       </div>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-[1000] flex items-end sm:hidden">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 sm:hidden">
           <div
             className="absolute inset-0 bg-black/60"
             onClick={() => setIsOpen(false)}
             aria-hidden
           />
-          <div className="relative w-full max-h-[80vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-night/95 p-4 pb-8 shadow-2xl shadow-black/40">
+          <div className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-3xl border border-white/10 bg-night/95 p-4 pb-6 shadow-2xl shadow-black/40">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
@@ -162,9 +162,22 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/60"
+                className="text-white/40 transition hover:text-white"
               >
-                Close
+                <span className="sr-only">Close</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 6l12 12" />
+                  <path d="M18 6 6 18" />
+                </svg>
               </button>
             </div>
             <div className="space-y-2">
