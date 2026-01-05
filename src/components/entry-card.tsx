@@ -89,7 +89,7 @@ export function EntryCard({
 
   return (
     <article
-      className={`flex flex-col gap-6 rounded-3xl border border-white/5 bg-white/5 p-6 shadow-xl shadow-black/30 transition-all duration-500 ${
+      className={`flex flex-col gap-6 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-xl shadow-black/30 transition-all duration-500 sm:p-6 ${
         isRemoving ? "pointer-events-none scale-[0.98] opacity-0" : ""
       } ${
         isCollapsed

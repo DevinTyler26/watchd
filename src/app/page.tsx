@@ -261,7 +261,7 @@ export default async function Home({
   return (
     <div className="min-h-screen pb-24">
       <SiteHeader session={session} viewingFeed={viewingFeedConfig} />
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 sm:px-6">
         {session?.user ? (
           <section className="space-y-4 rounded-3xl border border-white/5 bg-night/30 p-6 text-white">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

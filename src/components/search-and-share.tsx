@@ -305,7 +305,7 @@ export function SearchAndShare({
         </div>
         <form
           onSubmit={handleSearch}
-          className="relative z-[100] space-y-4 rounded-2xl border border-white/10 bg-night/40 p-4 backdrop-blur"
+          className="relative z-[100] space-y-4 rounded-2xl border border-white/10 bg-night/40 p-3 backdrop-blur sm:p-4"
         >
           <div className="flex flex-wrap gap-2">
             {filters.map((item) => (
@@ -378,7 +378,7 @@ export function SearchAndShare({
               <button
                 type="submit"
                 disabled={disabled || isSearching}
-                className="flex-1 rounded-2xl bg-brand px-6 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
               >
                 {isSearching ? "Searching…" : "Pull from IMDb"}
               </button>
@@ -386,7 +386,7 @@ export function SearchAndShare({
                 type="button"
                 onClick={clearSearch}
                 disabled={!hasSearched && !results.length && !query}
-                className="h-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-full rounded-2xl border border-white/15 px-3 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
               >
                 Clear
               </button>
@@ -400,7 +400,7 @@ export function SearchAndShare({
             {results.map((result, index) => (
               <li
                 key={`${result.imdbId}-${index}`}
-                className="rounded-3xl border border-white/5 bg-white/5 p-4 shadow-lg shadow-black/20"
+                className="rounded-3xl border border-white/5 bg-white/5 p-2 shadow-lg shadow-black/20 sm:p-4"
               >
                 <div className="flex items-stretch gap-4">
                   <div className="relative w-[120px] shrink-0">
