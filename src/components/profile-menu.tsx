@@ -58,7 +58,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative z-50">
+    <div ref={containerRef} className="relative z-[1000]">
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
