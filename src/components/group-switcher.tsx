@@ -149,7 +149,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
             onClick={() => setIsOpen(false)}
             aria-hidden
           />
-          <div className="relative w-full rounded-t-3xl border border-white/10 bg-night/95 p-4 shadow-2xl shadow-black/40">
+          <div className="relative w-full max-h-[80vh] overflow-y-auto rounded-t-3xl border border-white/10 bg-night/95 p-4 pb-8 shadow-2xl shadow-black/40">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">

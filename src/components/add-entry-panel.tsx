@@ -16,8 +16,8 @@ export function AddEntryPanel({
   existingFeedIds: string[];
 }) {
   return (
-    <section className="relative overflow-visible rounded-3xl border border-white/5 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-8 shadow-2xl shadow-black/30">
-      <div className="space-y-2 pb-6">
+    <section className="relative overflow-visible rounded-3xl border-none bg-transparent p-0 shadow-none sm:border sm:border-white/5 sm:bg-gradient-to-br sm:from-white/10 sm:via-white/5 sm:to-transparent sm:p-8 sm:shadow-2xl sm:shadow-black/30">
+      <div className="space-y-2 pb-4 sm:pb-6">
         <p className="text-sm uppercase tracking-[0.4em] text-white/60">
           New drop
         </p>
