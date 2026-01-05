@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "ia.media-imdb.com",
       },
+      {
+        protocol: "https",
+        hostname: "image.tmdb.org",
+      },
     ],
   },
 };

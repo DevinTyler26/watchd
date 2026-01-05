@@ -25,8 +25,11 @@ function extractPlot(omdb: EntryWithUser["omdb"]) {
   if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
     return null;
   }
-  const plot = (omdb as { Plot?: unknown }).Plot;
-  return typeof plot === "string" ? plot : null;
+  const payload = omdb as { Plot?: unknown; overview?: unknown };
+  if (typeof payload.overview === "string") {
+    return payload.overview;
+  }
+  return typeof payload.Plot === "string" ? payload.Plot : null;
 }
 
 export function EntryCard({

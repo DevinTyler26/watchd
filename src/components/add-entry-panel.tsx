@@ -25,7 +25,7 @@ export function AddEntryPanel({
           Hey {name?.split(" ")[0] ?? "there"}, what did you watch & love?
         </h2>
         <p className="text-base text-white/70">
-          Search IMDb, add a note, and Watchd will let your circle know exactly
+          Search TMDB, add a note, and Watchd will let your circle know exactly
           what deserves their next binge.
         </p>
       </div>
