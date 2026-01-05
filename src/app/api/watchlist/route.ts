@@ -8,14 +8,15 @@ import { prisma } from "@/lib/prisma";
 import { sendGroupUpdateEmail } from "@/lib/email";
 
 const payloadSchema = z.object({
-  imdbId: z.string().min(2, "IMDb id is required"),
+  imdbId: z.string().min(2, "TMDB id is required"),
+  type: z.enum(["movie", "series"]).optional(),
   note: z.string().max(500).optional(),
   liked: z.boolean().optional(),
   groupId: z.string().cuid().optional().nullable(),
 });
 
 const deleteSchema = z.object({
-  imdbId: z.string().min(2, "IMDb id is required"),
+  imdbId: z.string().min(2, "TMDB id is required"),
   groupId: z.string().cuid().optional().nullable(),
 });
 
@@ -47,10 +48,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten().formErrors.join(", ") }, { status: 400 });
   }
 
-  const title = await fetchTitleById(parsed.data.imdbId);
+  const title = await fetchTitleById(parsed.data.imdbId, parsed.data.type);
 
   if (!title) {
-    return NextResponse.json({ error: "IMDb title not found" }, { status: 404 });
+    return NextResponse.json({ error: "TMDB title not found" }, { status: 404 });
   }
 
   const targetGroupId = parsed.data.groupId ?? null;

@@ -15,7 +15,7 @@ type SearchResult = {
   imdbId: string;
   title: string;
   year?: string;
-  type: string;
+  type: "movie" | "series";
   posterUrl?: string;
 };
 
@@ -128,7 +128,7 @@ export function SearchAndShare({
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to reach IMDb right now.");
+        throw new Error(payload.error ?? "Unable to reach TMDB right now.");
       }
 
       setResults(
@@ -166,6 +166,7 @@ export function SearchAndShare({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imdbId: result.imdbId,
+          type: result.type,
           liked: likedSelection ?? true,
           groupId: target.id ?? undefined,
         }),
@@ -397,7 +398,7 @@ export function SearchAndShare({
                 disabled={disabled || isSearching}
                 className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
               >
-                {isSearching ? "Searching…" : "Pull from IMDb"}
+                {isSearching ? "Searching…" : "Pull from TMDB"}
               </button>
               <button
                 type="button"

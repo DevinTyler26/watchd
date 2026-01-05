@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cacheSearchResults, searchTitles, searchTitlesCached, type ImdbTitle } from "@/lib/imdb";
 
-type Suggestion = ImdbTitle & { source: "local" | "cache" | "prefix-cache" | "omdb" };
+type Suggestion = ImdbTitle & { source: "local" | "cache" | "prefix-cache" | "tmdb" };
 
 function normalizeType(typeParam: string | null) {
   return typeParam === "movie" || typeParam === "series" ? typeParam : undefined;
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     try {
       results = await searchTitles(trimmed, normalizedType);
       cacheSearchResults(trimmed, normalizedType, results);
-      source = "omdb";
+      source = "tmdb";
     } catch {
       // Fall back to prefix cache results.
     }
