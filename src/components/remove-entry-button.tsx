@@ -7,12 +7,18 @@ interface RemoveEntryButtonProps {
   imdbId: string;
   groupId: string | null;
   title: string;
+  variant?: "danger" | "ghost";
+  size?: "sm" | "md";
+  iconOnly?: boolean;
 }
 
 export function RemoveEntryButton({
   imdbId,
   groupId,
   title,
+  variant = "danger",
+  size = "md",
+  iconOnly = false,
 }: RemoveEntryButtonProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -53,6 +59,14 @@ export function RemoveEntryButton({
   };
 
   const label = isPending ? "Removing..." : "Remove entry";
+  const sizeClasses =
+    size === "sm"
+      ? "px-3 py-1 text-[11px] uppercase tracking-[0.24em]"
+      : "px-3 py-1 text-sm font-medium";
+  const toneClasses =
+    variant === "ghost"
+      ? "border-white/15 text-white/70 hover:border-white/40 hover:bg-white/10 hover:text-white"
+      : "border-rose-500 text-rose-500 hover:bg-rose-500 hover:text-white";
 
   return (
     <>
@@ -60,10 +74,29 @@ export function RemoveEntryButton({
         type="button"
         onClick={handleRemove}
         disabled={isPending}
-        className="rounded border border-rose-500 px-3 py-1 text-sm font-medium text-rose-500 transition hover:bg-rose-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+        className={
+          iconOnly
+            ? "inline-flex items-center text-white/60 transition hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-70"
+            : `rounded border transition ${sizeClasses} ${toneClasses} disabled:cursor-not-allowed disabled:opacity-70`
+        }
         aria-label={`Remove ${title}`}
       >
-        {label}
+        {iconOnly ? (
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="M6 6l1 14h10l1-14" />
+          </svg>
+        ) : (
+          label
+        )}
       </button>
 
       {confirming ? (

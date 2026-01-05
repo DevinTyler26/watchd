@@ -98,7 +98,19 @@ export function EntryReactionButtons({
         isActive={reaction === "LIKE"}
         onClick={() => handleSelect("LIKE")}
         disabled={!canReact || isPending}
-        activeClasses="border-emerald/80 bg-emerald/20 text-emerald"
+        activeClasses="text-emerald"
+        icon={
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M7 11v9H4v-9h3Zm4 9h7a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-5.5l.9-3.8a1.5 1.5 0 0 0-3-.6L8 11" />
+          </svg>
+        }
       />
       <ReactionButton
         label="Dislike"
@@ -106,7 +118,19 @@ export function EntryReactionButtons({
         isActive={reaction === "DISLIKE"}
         onClick={() => handleSelect("DISLIKE")}
         disabled={!canReact || isPending}
-        activeClasses="border-rose-500/80 bg-rose-500/20 text-rose-200"
+        activeClasses="text-rose-200"
+        icon={
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M17 13V4h3v9h-3Zm-4-9H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h5.5l-.9 3.8a1.5 1.5 0 0 0 3 .6L16 13" />
+          </svg>
+        }
       />
     </div>
   );
@@ -119,6 +143,7 @@ type ReactionButtonProps = {
   onClick: () => void;
   disabled: boolean;
   activeClasses: string;
+  icon: React.ReactNode;
 };
 
 function ReactionButton({
@@ -128,6 +153,7 @@ function ReactionButton({
   onClick,
   disabled,
   activeClasses,
+  icon,
 }: ReactionButtonProps) {
   return (
     <button
@@ -135,14 +161,13 @@ function ReactionButton({
       onClick={onClick}
       disabled={disabled}
       aria-pressed={isActive}
-      className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold transition ${
-        isActive
-          ? activeClasses
-          : "border-white/10 bg-white/5 text-white/80 hover:border-white/40 hover:text-white"
+      className={`flex items-center gap-2 text-sm font-semibold transition ${
+        isActive ? activeClasses : "text-white/70 hover:text-white"
       } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
     >
-      <span>{label}</span>
-      <span className="text-xs font-mono text-white/70">{count}</span>
+      {icon}
+      <span className="sr-only">{label}</span>
+      <span className="text-xs font-mono text-white/60">{count}</span>
     </button>
   );
 }

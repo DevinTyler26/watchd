@@ -14,6 +14,7 @@ type EntryShareMenuProps = {
   note?: string | null;
   groups: ShareGroup[];
   sharedGroups?: Array<{ id: string; name: string }>;
+  variant?: "default" | "compact";
 };
 
 export function EntryShareMenu({
@@ -22,6 +23,7 @@ export function EntryShareMenu({
   note,
   groups,
   sharedGroups = [],
+  variant = "default",
 }: EntryShareMenuProps) {
   const router = useRouter();
   const [selection, setSelection] = useState("");
@@ -101,20 +103,33 @@ export function EntryShareMenu({
     : sharedGroups.length
     ? "text-white/60"
     : "text-white/40";
+  const isCompact = variant === "compact";
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.4em] text-white/40">
+    <div
+      className={`flex flex-col gap-3 ${
+        isCompact ? "" : "lg:flex-row lg:items-center lg:justify-between"
+      }`}
+    >
+      <div className="space-y-1">
+        <p
+          className={`uppercase tracking-[0.4em] text-white/40 ${
+            isCompact ? "text-[9px]" : "text-[10px]"
+          }`}
+        >
           Share to circle
         </p>
-        <p className={`text-xs ${helperTone}`}>{helper}</p>
+        {!isCompact || sharedGroups.length || message ? (
+          <p className={`text-xs ${helperTone}`}>{helper}</p>
+        ) : null}
         {sharedGroups.length ? (
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-2">
             {sharedGroups.map((group) => (
               <span
                 key={`${group.id}-${group.name}`}
-                className="rounded-full border border-white/15 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-white/70"
+                className={`rounded-full border border-white/15 px-3 py-1 uppercase tracking-[0.3em] text-white/70 ${
+                  isCompact ? "text-[9px]" : "text-[10px]"
+                }`}
               >
                 {group.name}
               </span>
@@ -122,12 +137,14 @@ export function EntryShareMenu({
           </div>
         ) : null}
       </div>
-      <div className="relative w-full sm:max-w-xs">
+      <div className={`relative w-full ${isCompact ? "" : "lg:max-w-xs"}`}>
         <select
           value={selection}
           onChange={(event) => handleChange(event.target.value)}
           disabled={isPending}
-          className="w-full appearance-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-left text-sm font-semibold uppercase tracking-[0.25em] text-white/80 transition focus:border-emerald focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          className={`w-full appearance-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-left font-semibold uppercase tracking-[0.25em] text-white/80 transition focus:border-emerald focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+            isCompact ? "text-[11px]" : "text-sm"
+          }`}
         >
           <option value="">Pick a circle</option>
           {orderedGroups.map((group) => (
