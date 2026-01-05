@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { GroupRole } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 
@@ -250,7 +249,6 @@ export default async function Home({
     id: selectedGroup ? selectedGroup.id : null,
     label: selectedGroup ? `${selectedGroup.name}` : "Personal feed",
   };
-  const viewingLabel = selectedGroup ? selectedGroup.name : "Personal feed";
   const groupMismatch =
     requestedCode !== "personal" && !selectedGroup && groups.length > 0;
 
@@ -262,38 +260,6 @@ export default async function Home({
     <div className="min-h-screen pb-24">
       <SiteHeader session={session} viewingFeed={viewingFeedConfig} />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 sm:px-6">
-        {session?.user ? (
-          <section className="space-y-4 rounded-3xl border border-white/5 bg-night/30 p-6 text-white">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-                  Share destination
-                </p>
-                <h2 className="text-2xl font-semibold text-white">
-                  {viewingLabel}
-                </h2>
-                <p className="text-sm text-white/60">
-                  {groups.length === 0
-                    ? "No circles yet—create one to start sharing."
-                    : `${groups.length} active ${
-                        groups.length === 1 ? "circle" : "circles"
-                      } available.`}
-                </p>
-              </div>
-              <Link
-                href={
-                  activeFeedCode !== "personal"
-                    ? `/circles?group=${activeFeedCode}`
-                    : "/circles"
-                }
-                className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
-              >
-                Manage circles
-              </Link>
-            </div>
-          </section>
-        ) : null}
-
         <SharedWatchlistHero
           signedIn={Boolean(session?.user)}
           initiallyDismissed={heroDismissed}
