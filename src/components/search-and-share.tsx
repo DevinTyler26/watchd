@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type ShareTarget = {
   id: string | null;
@@ -51,6 +51,7 @@ export function SearchAndShare({
   const [skipNextSuggestionFetch, setSkipNextSuggestionFetch] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const suggestionRef = useRef<HTMLDivElement | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionState, setActionState] = useState<{
     id?: string;
@@ -296,6 +297,25 @@ export function SearchAndShare({
     };
   }, [query, filter]);
 
+  useEffect(() => {
+    if (!showSuggestions) {
+      return;
+    }
+    const handleOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target || suggestionRef.current?.contains(target)) {
+        return;
+      }
+      setShowSuggestions(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [showSuggestions]);
+
   return (
     <>
       <div className="space-y-6">
@@ -324,16 +344,13 @@ export function SearchAndShare({
             ))}
           </div>
           <div className="relative flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+            <div ref={suggestionRef} className="relative flex-1">
               <input
                 type="text"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onFocus={() => {
                   if (suggestions.length) setShowSuggestions(true);
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => setShowSuggestions(false), 120);
                 }}
                 placeholder="Search for a title, e.g. The Office"
                 className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
