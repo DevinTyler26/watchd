@@ -38,7 +38,9 @@ export function SearchAndShare({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const [likedById, setLikedById] = useState<
+    Record<string, boolean | undefined>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionState, setActionState] = useState<{
@@ -89,7 +91,7 @@ export function SearchAndShare({
     setError(null);
     setActionState({ status: "idle" });
     setNotes({});
-    setLiked({});
+    setLikedById({});
   }
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
@@ -134,6 +136,7 @@ export function SearchAndShare({
       return;
     }
     setActionState({ id: result.imdbId, status: "saving" });
+    const likedSelection = likedById[result.imdbId];
 
     try {
       const response = await fetch("/api/watchlist", {
@@ -141,14 +144,52 @@ export function SearchAndShare({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imdbId: result.imdbId,
-          note: notes[result.imdbId],
-          liked: liked[result.imdbId] ?? true,
+          liked: likedSelection ?? true,
           groupId: target.id ?? undefined,
         }),
       });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error ?? "Could not save entry.");
+      }
+      const entryId = payload?.entry?.id as string | undefined;
+      if (entryId) {
+        if (likedSelection !== undefined) {
+          const reactionResponse = await fetch(
+            `/api/watchlist/${entryId}/reaction`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                reaction: likedSelection ? "LIKE" : "DISLIKE",
+              }),
+            }
+          );
+          if (!reactionResponse.ok) {
+            // Best-effort: entry saved, ignore reaction failure.
+            await reactionResponse.json().catch(() => ({}));
+          }
+        }
+        const comment = notes[result.imdbId]?.trim();
+        if (comment) {
+          const commentResponse = await fetch(
+            `/api/watchlist/${entryId}/comments`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ body: comment }),
+            }
+          );
+          if (!commentResponse.ok) {
+            const commentPayload = await commentResponse
+              .json()
+              .catch(() => ({}));
+            throw new Error(
+              commentPayload?.error ??
+                "Entry saved, but comment failed to post."
+            );
+          }
+        }
       }
 
       setActionState({
@@ -291,7 +332,7 @@ export function SearchAndShare({
                           : "Share it"}
                       </button>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div>
                       <textarea
                         value={notes[result.imdbId] ?? ""}
                         onChange={(event) =>
@@ -300,24 +341,64 @@ export function SearchAndShare({
                             [result.imdbId]: event.target.value,
                           }))
                         }
-                        placeholder="Add a short note or pull-quote (optional)"
-                        className="min-h-16 rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
+                        placeholder="Add a comment (optional)"
+                        className="min-h-16 w-full rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
                         maxLength={500}
                       />
-                      <label className="flex items-center justify-between rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white/70">
-                        <span>Mark as liked</span>
-                        <input
-                          type="checkbox"
-                          checked={liked[result.imdbId] ?? true}
-                          onChange={(event) =>
-                            setLiked((prev) => ({
+                      <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLikedById((prev) => ({
                               ...prev,
-                              [result.imdbId]: event.target.checked,
+                              [result.imdbId]: true,
                             }))
                           }
-                          className="h-5 w-5 accent-brand"
-                        />
-                      </label>
+                          className={`inline-flex items-center gap-2 ${
+                            likedById[result.imdbId] === true
+                              ? "text-emerald"
+                              : "text-white/60 hover:text-white"
+                          }`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M7 11v9H4v-9h3Zm4 9h7a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-5.5l.9-3.8a1.5 1.5 0 0 0-3-.6L8 11" />
+                          </svg>
+                          <span className="sr-only">Like</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLikedById((prev) => ({
+                              ...prev,
+                              [result.imdbId]: false,
+                            }))
+                          }
+                          className={`inline-flex items-center gap-2 ${
+                            likedById[result.imdbId] === false
+                              ? "text-rose-200"
+                              : "text-white/60 hover:text-white"
+                          }`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            aria-hidden
+                            className="h-5 w-5"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M17 13V4h3v9h-3Zm-4-9H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h5.5l-.9 3.8a1.5 1.5 0 0 0 3 .6L16 13" />
+                          </svg>
+                          <span className="sr-only">Dislike</span>
+                        </button>
+                      </div>
                     </div>
                     {blockedIds.has(result.imdbId) ? (
                       <p className="text-sm text-emerald">
