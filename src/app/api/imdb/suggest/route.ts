@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { searchTitlesCached, type ImdbTitle } from "@/lib/imdb";
+import { cacheSearchResults, searchTitles, searchTitlesCached, type ImdbTitle } from "@/lib/imdb";
 
 type Suggestion = ImdbTitle & { source: "local" | "cache" | "prefix-cache" | "omdb" };
 
@@ -49,9 +49,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ suggestions: localSuggestions.slice(0, 8) });
   }
 
-  const { results, source } = await searchTitlesCached(trimmed, normalizedType, {
+  let { results, source } = await searchTitlesCached(trimmed, normalizedType, {
     allowPrefix: true,
   });
+  if (source === "prefix-cache" && trimmed.length >= 5 && results.length < 6) {
+    try {
+      results = await searchTitles(trimmed, normalizedType);
+      cacheSearchResults(trimmed, normalizedType, results);
+      source = "omdb";
+    } catch {
+      // Fall back to prefix cache results.
+    }
+  }
   const seen = new Set(localSuggestions.map((item) => item.imdbId));
   const merged = [...localSuggestions];
 
