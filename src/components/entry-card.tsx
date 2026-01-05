@@ -130,7 +130,10 @@ export function EntryCard({
                 </div>
               )}
             </div>
-            <span className="mt-1 text-xs text-white/50 sm:whitespace-nowrap">
+            <span
+              className="mt-1 text-xs text-white/50 sm:whitespace-nowrap"
+              suppressHydrationWarning
+            >
               {relativeTimeFromNow(entry.createdAt)}
             </span>
           </div>

@@ -174,6 +174,15 @@ export async function searchTitlesCached(
   return { results, source: "omdb" as const };
 }
 
+export function cacheSearchResults(
+  query: string,
+  type: "movie" | "series" | undefined,
+  results: ImdbTitle[]
+) {
+  const key = normalizeQueryKey(query, type);
+  setCachedEntry(key, results);
+}
+
 export async function fetchTitleById(imdbId: string): Promise<ImdbTitle | null> {
   const key = requireApiKey();
   const params = new URLSearchParams({ apikey: key, i: imdbId, plot: "short" });
