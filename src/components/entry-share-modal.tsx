@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { EntryShareMenu } from "@/components/entry-share-menu";
 
 type EntryShareModalProps = {
@@ -19,6 +20,11 @@ export function EntryShareModal({
   sharedGroups = [],
 }: EntryShareModalProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -64,56 +70,61 @@ export function EntryShareModal({
           {sharedGroups.length}
         </span>
       </button>
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 py-8 backdrop-blur"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setOpen(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-                  Share
-                </p>
-                <p className="mt-2 text-2xl font-semibold">Share to circle</p>
+      {open && mounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8 backdrop-blur"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  setOpen(false);
+                }
+              }}
+            >
+              <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+                      Share
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">
+                      Share to circle
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="text-white/40 transition hover:text-white"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 6l12 12" />
+                      <path d="M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <EntryShareMenu
+                    imdbId={imdbId}
+                    liked={liked}
+                    note={note}
+                    groups={groups}
+                    sharedGroups={sharedGroups}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="text-white/40 transition hover:text-white"
-              >
-                <span className="sr-only">Close</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 6l12 12" />
-                  <path d="M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-            <div className="mt-4">
-              <EntryShareMenu
-                imdbId={imdbId}
-                liked={liked}
-                note={note}
-                groups={groups}
-                sharedGroups={sharedGroups}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
