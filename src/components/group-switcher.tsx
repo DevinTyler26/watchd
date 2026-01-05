@@ -208,7 +208,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
         </div>
       ) : null}
       {isPending ? (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 backdrop-blur">
           <div className="flex flex-col items-center gap-4 text-white">
             <span
               className="h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white"
