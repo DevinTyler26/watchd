@@ -143,7 +143,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
       </div>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end sm:hidden">
+        <div className="fixed inset-0 z-[1000] flex items-end sm:hidden">
           <div
             className="absolute inset-0 bg-black/60"
             onClick={() => setIsOpen(false)}

@@ -10,6 +10,10 @@ interface RemoveEntryButtonProps {
   variant?: "danger" | "ghost";
   size?: "sm" | "md";
   iconOnly?: boolean;
+  onRemoveStart?: () => void;
+  onRemoveSuccess?: () => void;
+  onRemoveError?: () => void;
+  refreshDelayMs?: number;
 }
 
 export function RemoveEntryButton({
@@ -19,6 +23,10 @@ export function RemoveEntryButton({
   variant = "danger",
   size = "md",
   iconOnly = false,
+  onRemoveStart,
+  onRemoveSuccess,
+  onRemoveError,
+  refreshDelayMs = 0,
 }: RemoveEntryButtonProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -29,31 +37,43 @@ export function RemoveEntryButton({
   };
 
   const deleteEntry = async () => {
-    const response = await fetch("/api/watchlist", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ imdbId, groupId }),
-    });
+    try {
+      const response = await fetch("/api/watchlist", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imdbId, groupId }),
+      });
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      const message =
-        typeof payload?.error === "string"
-          ? payload.error
-          : "Could not remove entry.";
-      // keep simple alert to bubble error without extra UI surface
-      alert(message);
-      return;
+      if (!response.ok) {
+        onRemoveError?.();
+        const payload = await response.json().catch(() => ({}));
+        const message =
+          typeof payload?.error === "string"
+            ? payload.error
+            : "Could not remove entry.";
+        // keep simple alert to bubble error without extra UI surface
+        alert(message);
+        return;
+      }
+
+      setConfirming(false);
+      if (refreshDelayMs > 0) {
+        window.setTimeout(() => router.refresh(), refreshDelayMs);
+      } else {
+        router.refresh();
+      }
+      onRemoveSuccess?.();
+    } catch {
+      onRemoveError?.();
+      alert("Could not remove entry.");
     }
-
-    setConfirming(false);
-    router.refresh();
   };
 
   const confirmRemove = () => {
     startTransition(() => {
+      onRemoveStart?.();
       void deleteEntry();
     });
   };
@@ -82,25 +102,32 @@ export function RemoveEntryButton({
         aria-label={`Remove ${title}`}
       >
         {iconOnly ? (
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M3 6h18" />
-            <path d="M8 6V4h8v2" />
-            <path d="M6 6l1 14h10l1-14" />
-          </svg>
+          isPending ? (
+            <span
+              className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"
+              aria-hidden
+            />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M6 6l1 14h10l1-14" />
+            </svg>
+          )
         ) : (
           label
         )}
       </button>
 
       {confirming ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 py-8">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
           <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
               Heads up

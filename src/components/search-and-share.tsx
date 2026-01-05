@@ -19,6 +19,8 @@ type SearchResult = {
   posterUrl?: string;
 };
 
+type Suggestion = SearchResult & { source?: string };
+
 const filters: Array<{ label: string; value: Filter }> = [
   { label: "Everything", value: "all" },
   { label: "Movies", value: "movie" },
@@ -41,6 +43,13 @@ export function SearchAndShare({
   const [likedById, setLikedById] = useState<
     Record<string, boolean | undefined>
   >({});
+  const [posterErrorById, setPosterErrorById] = useState<
+    Record<string, boolean>
+  >({});
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [skipNextSuggestionFetch, setSkipNextSuggestionFetch] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionState, setActionState] = useState<{
@@ -63,6 +72,11 @@ export function SearchAndShare({
   }, [existingIds]);
 
   const scrollToFeed = () => {
+    try {
+      localStorage.setItem("watchd:animate-latest", "1");
+    } catch {
+      // Ignore storage failures.
+    }
     setConfirmation(null);
     clearSearch();
     if (typeof window === "undefined") {
@@ -92,21 +106,19 @@ export function SearchAndShare({
     setActionState({ status: "idle" });
     setNotes({});
     setLikedById({});
+    setPosterErrorById({});
+    setSuggestions([]);
+    setShowSuggestions(false);
   }
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (disabled) {
-      setError("Type at least two characters.");
-      return;
-    }
-
+  async function runSearch(input: string) {
     setIsSearching(true);
     setError(null);
     setHasSearched(true);
+    setShowSuggestions(false);
 
     try {
-      const params = new URLSearchParams({ q: query.trim() });
+      const params = new URLSearchParams({ q: input.trim() });
       if (filter !== "all") {
         params.set("type", filter);
       }
@@ -129,6 +141,15 @@ export function SearchAndShare({
     } finally {
       setIsSearching(false);
     }
+  }
+
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled) {
+      setError("Type at least two characters.");
+      return;
+    }
+    void runSearch(query);
   }
 
   async function share(result: SearchResult) {
@@ -221,6 +242,60 @@ export function SearchAndShare({
     }
   }
 
+  useEffect(() => {
+    if (skipNextSuggestionFetch) {
+      setSkipNextSuggestionFetch(false);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsSuggesting(false);
+      return;
+    }
+    if (query.trim().length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setIsSuggesting(false);
+      return;
+    }
+    setShowSuggestions(true);
+    setIsSuggesting(true);
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: query.trim() });
+        if (filter !== "all") {
+          params.set("type", filter);
+        }
+        const response = await fetch(`/api/imdb/suggest?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          setSuggestions([]);
+          setShowSuggestions(false);
+          setIsSuggesting(false);
+          return;
+        }
+        setSuggestions(
+          Array.isArray(payload.suggestions) ? payload.suggestions : []
+        );
+        setShowSuggestions(true);
+        setIsSuggesting(false);
+      } catch (err) {
+        if ((err as DOMException).name === "AbortError") {
+          return;
+        }
+        setSuggestions([]);
+        setShowSuggestions(false);
+        setIsSuggesting(false);
+      }
+    }, 450);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query, filter]);
+
   return (
     <>
       <div className="space-y-6">
@@ -230,7 +305,7 @@ export function SearchAndShare({
         </div>
         <form
           onSubmit={handleSearch}
-          className="space-y-4 rounded-2xl border border-white/10 bg-night/40 p-4 backdrop-blur"
+          className="relative z-[100] space-y-4 rounded-2xl border border-white/10 bg-night/40 p-4 backdrop-blur"
         >
           <div className="flex flex-wrap gap-2">
             {filters.map((item) => (
@@ -248,14 +323,57 @@ export function SearchAndShare({
               </button>
             ))}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search for a title, e.g. The Office"
-              className="flex-1 rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
-            />
+          <div className="relative flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onFocus={() => {
+                  if (suggestions.length) setShowSuggestions(true);
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => setShowSuggestions(false), 120);
+                }}
+                placeholder="Search for a title, e.g. The Office"
+                className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
+              />
+              {showSuggestions && (suggestions.length || isSuggesting) ? (
+                <div className="absolute z-[200] mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-night/95 shadow-2xl shadow-black/40">
+                  {isSuggesting ? (
+                    <div className="flex items-center gap-3 px-4 py-3 text-sm text-white/60">
+                      <span
+                        className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                        aria-hidden
+                      />
+                      Loading suggestions…
+                    </div>
+                  ) : (
+                    <ul className="max-h-64 overflow-y-auto py-2">
+                      {suggestions.map((suggestion) => (
+                        <li key={suggestion.imdbId}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuery(suggestion.title);
+                              setShowSuggestions(false);
+                              setSkipNextSuggestionFetch(true);
+                              void runSearch(suggestion.title);
+                            }}
+                            className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-white/80 transition hover:bg-white/10"
+                          >
+                            <span className="truncate">{suggestion.title}</span>
+                            <span className="whitespace-nowrap text-xs uppercase tracking-[0.3em] text-white/40">
+                              {suggestion.year ?? suggestion.type}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <div className="flex items-center gap-2 sm:w-64">
               <button
                 type="submit"
@@ -284,20 +402,34 @@ export function SearchAndShare({
                 key={`${result.imdbId}-${index}`}
                 className="rounded-3xl border border-white/5 bg-white/5 p-4 shadow-lg shadow-black/20"
               >
-                <div className="flex flex-col gap-4 md:flex-row">
-                  {result.posterUrl ? (
-                    <Image
-                      src={result.posterUrl}
-                      alt={result.title}
-                      width={96}
-                      height={140}
-                      className="rounded-2xl border border-white/10 object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-[140px] w-[96px] items-center justify-center rounded-2xl border border-dashed border-white/15 text-xs text-white/50">
-                      No poster
-                    </div>
-                  )}
+                <div className="flex items-stretch gap-4">
+                  <div className="relative w-[120px] shrink-0">
+                    {result.posterUrl &&
+                    result.posterUrl !== "N/A" &&
+                    !posterErrorById[result.imdbId] ? (
+                      <Image
+                        src={result.posterUrl}
+                        alt={result.title}
+                        fill
+                        sizes="120px"
+                        className="rounded-2xl border border-white/10 object-cover"
+                        onError={() =>
+                          setPosterErrorById((prev) => ({
+                            ...prev,
+                            [result.imdbId]: true,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <Image
+                        src="/poster-unavailable.png"
+                        alt="Poster unavailable"
+                        fill
+                        sizes="120px"
+                        className="rounded-2xl border border-white/10 object-cover"
+                      />
+                    )}
+                  </div>
                   <div className="flex-1 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -314,23 +446,7 @@ export function SearchAndShare({
                           {result.type}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => share(result)}
-                        disabled={
-                          blockedIds.has(result.imdbId) ||
-                          (actionState.status === "saving" &&
-                            actionState.id === result.imdbId)
-                        }
-                        className="h-11 rounded-2xl bg-emerald px-6 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {blockedIds.has(result.imdbId)
-                          ? "Already shared"
-                          : actionState.status === "saving" &&
-                            actionState.id === result.imdbId
-                          ? "Saving…"
-                          : "Share it"}
-                      </button>
+                      <div className="hidden sm:block" aria-hidden />
                     </div>
                     <div>
                       <textarea
@@ -345,58 +461,77 @@ export function SearchAndShare({
                         className="min-h-16 w-full rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
                         maxLength={500}
                       />
-                      <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                      <div className="mt-3 flex flex-wrap items-center justify-end gap-4 text-sm">
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLikedById((prev) => ({
+                                ...prev,
+                                [result.imdbId]: true,
+                              }))
+                            }
+                            className={`inline-flex items-center gap-2 ${
+                              likedById[result.imdbId] === true
+                                ? "text-emerald"
+                                : "text-white/60 hover:text-white"
+                            }`}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              aria-hidden
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M7 11v9H4v-9h3Zm4 9h7a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-5.5l.9-3.8a1.5 1.5 0 0 0-3-.6L8 11" />
+                            </svg>
+                            <span className="sr-only">Like</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLikedById((prev) => ({
+                                ...prev,
+                                [result.imdbId]: false,
+                              }))
+                            }
+                            className={`inline-flex items-center gap-2 ${
+                              likedById[result.imdbId] === false
+                                ? "text-rose-200"
+                                : "text-white/60 hover:text-white"
+                            }`}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              aria-hidden
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M17 13V4h3v9h-3Zm-4-9H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h5.5l-.9 3.8a1.5 1.5 0 0 0 3 .6L16 13" />
+                            </svg>
+                            <span className="sr-only">Dislike</span>
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            setLikedById((prev) => ({
-                              ...prev,
-                              [result.imdbId]: true,
-                            }))
+                          onClick={() => share(result)}
+                          disabled={
+                            blockedIds.has(result.imdbId) ||
+                            (actionState.status === "saving" &&
+                              actionState.id === result.imdbId)
                           }
-                          className={`inline-flex items-center gap-2 ${
-                            likedById[result.imdbId] === true
-                              ? "text-emerald"
-                              : "text-white/60 hover:text-white"
-                          }`}
+                          className="h-11 rounded-2xl bg-emerald px-6 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                            className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M7 11v9H4v-9h3Zm4 9h7a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-5.5l.9-3.8a1.5 1.5 0 0 0-3-.6L8 11" />
-                          </svg>
-                          <span className="sr-only">Like</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLikedById((prev) => ({
-                              ...prev,
-                              [result.imdbId]: false,
-                            }))
-                          }
-                          className={`inline-flex items-center gap-2 ${
-                            likedById[result.imdbId] === false
-                              ? "text-rose-200"
-                              : "text-white/60 hover:text-white"
-                          }`}
-                        >
-                          <svg
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                            className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M17 13V4h3v9h-3Zm-4-9H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h5.5l-.9 3.8a1.5 1.5 0 0 0 3 .6L16 13" />
-                          </svg>
-                          <span className="sr-only">Dislike</span>
+                          {blockedIds.has(result.imdbId)
+                            ? "Already shared"
+                            : actionState.status === "saving" &&
+                              actionState.id === result.imdbId
+                            ? "Saving…"
+                            : "Share it"}
                         </button>
                       </div>
                     </div>
@@ -435,7 +570,7 @@ export function SearchAndShare({
       </div>
 
       {confirmation ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 py-8">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
           <div className="w-full max-w-md rounded-3xl border border-white/10 bg-night/90 p-6 text-center text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-emerald">
               Entry added
@@ -446,7 +581,7 @@ export function SearchAndShare({
               {confirmation.year ? ` · ${confirmation.year}` : ""} is now live
               in your {confirmation.destination} signal feed.
             </p>
-            {confirmation.posterUrl ? (
+            {confirmation.posterUrl && confirmation.posterUrl !== "N/A" ? (
               <Image
                 src={confirmation.posterUrl}
                 alt={confirmation.title}
@@ -454,7 +589,15 @@ export function SearchAndShare({
                 height={180}
                 className="mx-auto mt-4 rounded-2xl border border-white/10 object-cover"
               />
-            ) : null}
+            ) : (
+              <Image
+                src="/poster-unavailable.png"
+                alt="Poster unavailable"
+                width={120}
+                height={180}
+                className="mx-auto mt-4 rounded-2xl border border-white/10 object-cover"
+              />
+            )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"

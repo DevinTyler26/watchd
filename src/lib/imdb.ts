@@ -34,6 +34,74 @@ export type ImdbTitle = {
   raw?: Record<string, unknown>;
 };
 
+type CacheEntry = {
+  expiresAt: number;
+  results: ImdbTitle[];
+};
+
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
+const MAX_CACHE_KEYS = 200;
+
+function getSearchCache() {
+  const globalCache = globalThis as typeof globalThis & {
+    omdbSearchCache?: Map<string, CacheEntry>;
+  };
+  if (!globalCache.omdbSearchCache) {
+    globalCache.omdbSearchCache = new Map();
+  }
+  return globalCache.omdbSearchCache;
+}
+
+function normalizeQueryKey(query: string, type?: "movie" | "series") {
+  const normalized = query.trim().toLowerCase().replace(/\s+/g, " ");
+  return `${normalized}::${type ?? "all"}`;
+}
+
+function getCachedEntry(key: string) {
+  const cache = getSearchCache();
+  const entry = cache.get(key);
+  if (!entry) {
+    return null;
+  }
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function setCachedEntry(key: string, results: ImdbTitle[]) {
+  const cache = getSearchCache();
+  if (cache.size >= MAX_CACHE_KEYS) {
+    const oldestKey = cache.keys().next().value as string | undefined;
+    if (oldestKey) {
+      cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, results });
+}
+
+function getPrefixCachedResults(
+  query: string,
+  type?: "movie" | "series",
+): ImdbTitle[] | null {
+  const normalized = query.trim().toLowerCase().replace(/\s+/g, " ");
+  if (normalized.length < 3) {
+    return null;
+  }
+  for (let i = normalized.length - 1; i >= 3; i -= 1) {
+    const prefix = normalized.slice(0, i);
+    const entry = getCachedEntry(normalizeQueryKey(prefix, type));
+    if (!entry) {
+      continue;
+    }
+    return entry.results.filter((item) =>
+      item.title.toLowerCase().includes(normalized),
+    );
+  }
+  return null;
+}
+
 function requireApiKey() {
   const key = process.env.OMDB_API_KEY;
   if (!key) {
@@ -83,6 +151,27 @@ export async function searchTitles(query: string, type?: "movie" | "series") {
   }
 
   return (data.Search ?? []).map(toTitle);
+}
+
+export async function searchTitlesCached(
+  query: string,
+  type?: "movie" | "series",
+  options?: { allowPrefix?: boolean },
+) {
+  const key = normalizeQueryKey(query, type);
+  const cached = getCachedEntry(key);
+  if (cached) {
+    return { results: cached.results, source: "cache" as const };
+  }
+  if (options?.allowPrefix) {
+    const prefixHits = getPrefixCachedResults(query, type);
+    if (prefixHits) {
+      return { results: prefixHits, source: "prefix-cache" as const };
+    }
+  }
+  const results = await searchTitles(query, type);
+  setCachedEntry(key, results);
+  return { results, source: "omdb" as const };
 }
 
 export async function fetchTitleById(imdbId: string): Promise<ImdbTitle | null> {

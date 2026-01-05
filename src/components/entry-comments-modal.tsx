@@ -1,13 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { EntryComments } from "@/components/entry-comments";
+import { getCachedComments, setCachedComments } from "@/lib/comments-cache";
 
 type EntryCommentsModalProps = {
   entryId: string;
   canComment: boolean;
   currentUserId?: string | null;
   title: string;
+};
+
+type CommentPayload = {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
 };
 
 export function EntryCommentsModal({
@@ -18,23 +31,47 @@ export function EntryCommentsModal({
 }: EntryCommentsModalProps) {
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState<number>(0);
+  const [mounted, setMounted] = useState(false);
+  const [prefetchedComments, setPrefetchedComments] = useState<
+    CommentPayload[] | undefined
+  >(undefined);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    async function loadCount() {
+    async function loadComments() {
+      const cached = getCachedComments(entryId);
+      if (cached) {
+        if (!cancelled) {
+          setPrefetchedComments(cached);
+          setCount(cached.length);
+        }
+        return;
+      }
       try {
         const response = await fetch(`/api/watchlist/${entryId}/comments`, {
           cache: "no-store",
         });
         const payload = await response.json();
         if (!cancelled) {
-          setCount(Array.isArray(payload.comments) ? payload.comments.length : 0);
+          const comments = Array.isArray(payload.comments)
+            ? (payload.comments as CommentPayload[])
+            : [];
+          setPrefetchedComments(comments);
+          setCount(comments.length);
+          setCachedComments(entryId, comments);
         }
       } catch {
-        if (!cancelled) setCount(0);
+        if (!cancelled) {
+          setCount(0);
+          setPrefetchedComments(undefined);
+        }
       }
     }
-    void loadCount();
+    void loadComments();
     return () => {
       cancelled = true;
     };
@@ -73,57 +110,64 @@ export function EntryCommentsModal({
         </svg>
         <span className="text-xs font-mono text-white/60">{count}</span>
       </button>
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6 py-8"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setOpen(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-                  Comments
-                </p>
-                <p className="mt-2 text-2xl font-semibold">{title}</p>
+      {open && mounted
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  setOpen(false);
+                }
+              }}
+            >
+              <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+                      Comments
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold">{title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="text-white/40 transition hover:text-white"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 6l12 12" />
+                      <path d="M18 6 6 18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <EntryComments
+                    entryId={entryId}
+                    canComment={canComment}
+                    currentUserId={currentUserId}
+                    onCountChange={setCount}
+                    onCommentsChange={(comments) => {
+                      setCachedComments(entryId, comments);
+                    }}
+                    hideHeader
+                    containerClassName="space-y-2 bg-transparent p-0"
+                    initialComments={prefetchedComments}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="text-white/40 transition hover:text-white"
-              >
-                <span className="sr-only">Close</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 6l12 12" />
-                  <path d="M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-            <div className="mt-4">
-              <EntryComments
-                entryId={entryId}
-                canComment={canComment}
-                currentUserId={currentUserId}
-                onCountChange={setCount}
-                hideHeader
-                containerClassName="space-y-2 bg-transparent p-0"
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }

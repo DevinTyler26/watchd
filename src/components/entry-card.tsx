@@ -1,10 +1,14 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import type { WatchEntry, User, Group } from "@prisma/client";
 import { relativeTimeFromNow } from "@/lib/time";
 import { RemoveEntryButton } from "@/components/remove-entry-button";
 import { EntryReactionButtons } from "@/components/entry-reaction-buttons";
 import { EntryCommentsModal } from "@/components/entry-comments-modal";
 import { EntryShareModal } from "@/components/entry-share-modal";
+import { CommentPrefetch } from "@/components/comment-prefetch";
 
 type ReactionType = "LIKE" | "DISLIKE";
 
@@ -32,6 +36,7 @@ export function EntryCard({
   canComment = false,
   currentUserId,
   shareTargets,
+  animateIn = false,
 }: {
   entry: EntryWithUser;
   canRemove?: boolean;
@@ -39,12 +44,60 @@ export function EntryCard({
   canComment?: boolean;
   currentUserId?: string | null;
   shareTargets?: Array<{ id: string | null; name: string }>;
+  animateIn?: boolean;
 }) {
   const canShareEntry = (shareTargets?.length ?? 0) > 0;
   const plot = extractPlot(entry.omdb);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isRemoved, setIsRemoved] = useState(false);
+  const collapseTimer = useRef<number | null>(null);
+  const removeTimer = useRef<number | null>(null);
+  const removeStartAt = useRef<number | null>(null);
+  const [shouldAnimateIn, setShouldAnimateIn] = useState(false);
+  const FADE_DURATION_MS = 500;
+  const COLLAPSE_DELAY_MS = 450;
+  const REMOVE_AFTER_MS = 700;
+
+  useEffect(() => {
+    if (animateIn) {
+      try {
+        const shouldAnimate = window.localStorage.getItem(
+          "watchd:animate-latest"
+        );
+        if (shouldAnimate === "1") {
+          setShouldAnimateIn(true);
+          window.localStorage.removeItem("watchd:animate-latest");
+        }
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+    return () => {
+      if (collapseTimer.current) {
+        window.clearTimeout(collapseTimer.current);
+      }
+      if (removeTimer.current) {
+        window.clearTimeout(removeTimer.current);
+      }
+    };
+  }, [animateIn]);
+
+  if (isRemoved) {
+    return null;
+  }
 
   return (
-    <article className="flex flex-col gap-6 rounded-3xl border border-white/5 bg-white/5 p-6 shadow-xl shadow-black/30">
+    <article
+      className={`flex flex-col gap-6 rounded-3xl border border-white/5 bg-white/5 p-6 shadow-xl shadow-black/30 transition-all duration-500 ${
+        isRemoving ? "pointer-events-none scale-[0.98] opacity-0" : ""
+      } ${
+        isCollapsed
+          ? "max-h-0 overflow-hidden border-transparent p-0"
+          : ""
+      } ${shouldAnimateIn ? "animate-entry-in" : ""}`}
+    >
+      <CommentPrefetch entryId={entry.id} />
       <header className="space-y-3">
         <div className="grid grid-cols-2 items-start gap-3 sm:flex sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -94,9 +147,14 @@ export function EntryCard({
             className="h-[140px] w-[96px] shrink-0 rounded-2xl border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
           />
         ) : (
-          <div className="flex h-[140px] w-[96px] shrink-0 items-center justify-center rounded-2xl border border-dashed border-white/15 text-xs text-white/50 sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]">
-            No poster
-          </div>
+          <Image
+            src="/poster-unavailable.png"
+            alt="Poster unavailable"
+            width={128}
+            height={192}
+            sizes="(min-width: 1024px) 128px, 96px"
+            className="h-[140px] w-[96px] shrink-0 rounded-2xl border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
+          />
         )}
         <div className="min-w-0 flex-1 space-y-3">
           {plot ? (
@@ -145,6 +203,33 @@ export function EntryCard({
                 groupId={entry.groupId}
                 title={entry.title}
                 iconOnly
+                refreshDelayMs={REMOVE_AFTER_MS}
+                onRemoveStart={() => {
+                  setIsRemoving(true);
+                  removeStartAt.current = Date.now();
+                  collapseTimer.current = window.setTimeout(() => {
+                    setIsCollapsed(true);
+                  }, COLLAPSE_DELAY_MS);
+                  removeTimer.current = window.setTimeout(() => {
+                    setIsRemoved(true);
+                  }, REMOVE_AFTER_MS);
+                }}
+                onRemoveSuccess={() => {
+                  const startedAt = removeStartAt.current ?? Date.now();
+                  const elapsed = Date.now() - startedAt;
+                  const remaining = Math.max(0, FADE_DURATION_MS - elapsed);
+                  window.setTimeout(() => setIsRemoved(true), remaining);
+                }}
+                onRemoveError={() => {
+                  if (collapseTimer.current) {
+                    window.clearTimeout(collapseTimer.current);
+                  }
+                  if (removeTimer.current) {
+                    window.clearTimeout(removeTimer.current);
+                  }
+                  setIsCollapsed(false);
+                  setIsRemoving(false);
+                }}
               />
             ) : null}
           </div>

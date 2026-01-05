@@ -183,29 +183,26 @@ export default async function Home({
   const viewerReactionMap = new Map(
     viewerReactionRows.map((item) => [item.entryId, item.reaction])
   );
-  const viewerEntryImdbIds =
-    viewerId && entriesRaw.length
-      ? Array.from(
-          new Set(
-            entriesRaw
-              .filter((entry) => entry.userId === viewerId)
-              .map((entry) => entry.imdbId)
-          )
-        )
-      : [];
-  const sharedGroupsByImdb = new Map<
+  const sharedGroupsByKey = new Map<
     string,
     Array<{ id: string; name: string }>
   >();
-  if (viewerId && viewerEntryImdbIds.length) {
+  const uniqueImdbIds = Array.from(
+    new Set(entriesRaw.map((entry) => entry.imdbId))
+  );
+  const uniqueUserIds = Array.from(
+    new Set(entriesRaw.map((entry) => entry.userId))
+  );
+  if (uniqueImdbIds.length && uniqueUserIds.length) {
     const sharedRows = await prisma.watchEntry.findMany({
       where: {
-        userId: viewerId,
-        imdbId: { in: viewerEntryImdbIds },
+        userId: { in: uniqueUserIds },
+        imdbId: { in: uniqueImdbIds },
         groupId: { not: null },
       },
       select: {
         imdbId: true,
+        userId: true,
         group: {
           select: { id: true, name: true },
         },
@@ -215,8 +212,9 @@ export default async function Home({
       if (!row.group) {
         return;
       }
-      const existing = sharedGroupsByImdb.get(row.imdbId) ?? [];
-      sharedGroupsByImdb.set(row.imdbId, [...existing, row.group]);
+      const key = `${row.userId}:${row.imdbId}`;
+      const existing = sharedGroupsByKey.get(key) ?? [];
+      sharedGroupsByKey.set(key, [...existing, row.group]);
     });
   }
   const entries: EntryWithUser[] = entriesRaw.map((entry) => {
@@ -230,9 +228,7 @@ export default async function Home({
       dislikeCount: counts.dislikeCount,
       viewerReaction: viewerReactionMap.get(entry.id) ?? null,
       sharedGroups:
-        entry.userId === viewerId
-          ? sharedGroupsByImdb.get(entry.imdbId) ?? []
-          : undefined,
+        sharedGroupsByKey.get(`${entry.userId}:${entry.imdbId}`) ?? [],
     };
   });
 
@@ -344,6 +340,7 @@ export default async function Home({
                     canComment={Boolean(session?.user)}
                     currentUserId={session?.user?.id}
                     shareTargets={shareTargets}
+                    animateIn={index === 0}
                   />
                 </div>
               ))}

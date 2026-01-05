@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchTitles } from "@/lib/imdb";
+import { searchTitlesCached } from "@/lib/imdb";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -15,8 +15,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const results = await searchTitles(query.trim(), normalizedType);
-    return NextResponse.json({ results });
+    const { results, source } = await searchTitlesCached(
+      query.trim(),
+      normalizedType,
+    );
+    return NextResponse.json({ results, source });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

@@ -34,3 +34,24 @@ body {
 a {
   color: inherit;
 }
+
+@keyframes entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-entry-in {
+    animation: none;
+  }
+}
+
+.animate-entry-in {
+  animation: entry-in 500ms ease-out both;
+}

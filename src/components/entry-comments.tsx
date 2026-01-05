@@ -23,8 +23,10 @@ type EntryCommentsProps = {
   canComment: boolean;
   currentUserId?: string | null;
   onCountChange?: (count: number) => void;
+  onCommentsChange?: (comments: Comment[]) => void;
   hideHeader?: boolean;
   containerClassName?: string;
+  initialComments?: Comment[];
 };
 
 export function EntryComments({
@@ -32,11 +34,15 @@ export function EntryComments({
   canComment,
   currentUserId,
   onCountChange,
+  onCommentsChange,
   hideHeader = false,
   containerClassName,
+  initialComments,
 }: EntryCommentsProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState<Comment[]>(
+    () => initialComments ?? []
+  );
+  const [loading, setLoading] = useState(!initialComments);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState("");
@@ -47,6 +53,11 @@ export function EntryComments({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialComments) {
+      setComments(initialComments);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -83,7 +94,7 @@ export function EntryComments({
     return () => {
       cancelled = true;
     };
-  }, [entryId]);
+  }, [entryId, initialComments]);
 
   useEffect(() => {
     if (comments.length > 0) {
@@ -102,6 +113,12 @@ export function EntryComments({
       onCountChange(comments.length);
     }
   }, [comments.length, onCountChange]);
+
+  useEffect(() => {
+    if (onCommentsChange) {
+      onCommentsChange(comments);
+    }
+  }, [comments, onCommentsChange]);
 
   async function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
