@@ -44,13 +44,17 @@ function requireDatabaseUrl() {
 }
 
 function parseArgs(argv) {
-  const args = { dryRun: false, all: false, limit: null };
+  const args = { dryRun: false, all: false, seriesOnly: false, singleYearOnly: false, limit: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--dry-run") {
       args.dryRun = true;
     } else if (arg === "--all") {
       args.all = true;
+    } else if (arg === "--series-only") {
+      args.seriesOnly = true;
+    } else if (arg === "--single-year-only") {
+      args.singleYearOnly = true;
     } else if (arg === "--limit") {
       const value = argv[i + 1];
       i += 1;
@@ -73,6 +77,10 @@ function getYear(date) {
   if (!date) return undefined;
   const year = String(date).split("-")[0];
   return /^\d{4}$/.test(year) ? year : undefined;
+}
+
+function isSingleYear(year) {
+  return typeof year === "string" && /^\d{4}$/.test(year);
 }
 
 function buildPosterUrl(pathValue) {
@@ -130,9 +138,11 @@ async function fetchDetails(tmdbKey, tmdbId, type) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Usage: node scripts/migrate-tmdb.js [--dry-run] [--all] [--limit N]");
+    console.log("Usage: node scripts/migrate-tmdb.js [--dry-run] [--all] [--series-only] [--single-year-only] [--limit N]");
     console.log("  --dry-run  Print changes without writing to the database.");
     console.log("  --all      Process all watch entries, not just IMDb (tt...) IDs.");
+    console.log("  --series-only      Process only entries with type = series.");
+    console.log("  --single-year-only Only process entries with a single-year value (e.g. 2019).");
     console.log("  --limit N  Limit how many entries to process.");
     return;
   }
@@ -154,9 +164,10 @@ async function main() {
   let failed = 0;
 
   try {
-    const where = args.all
-      ? {}
-      : { imdbId: { startsWith: "tt" } };
+    const where = {
+      ...(args.all ? {} : { imdbId: { startsWith: "tt" } }),
+      ...(args.seriesOnly ? { type: "series" } : {}),
+    };
 
     const entries = await prisma.watchEntry.findMany({
       where,
@@ -166,6 +177,7 @@ async function main() {
         id: true,
         imdbId: true,
         title: true,
+        year: true,
         type: true,
         groupId: true,
         userId: true,
@@ -177,6 +189,10 @@ async function main() {
     for (const entry of entries) {
       processed += 1;
       try {
+        if (args.singleYearOnly && !isSingleYear(entry.year)) {
+          skipped += 1;
+          continue;
+        }
         const match = await findTmdbMatch(tmdbKey, entry.imdbId, entry.type === "series" ? "series" : "movie");
         if (!match) {
           skipped += 1;

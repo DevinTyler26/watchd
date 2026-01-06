@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import type { WatchEntry, User, Group } from "@prisma/client";
+import type { WatchEntry, User, Group, Media } from "@prisma/client";
 import { relativeTimeFromNow } from "@/lib/time";
 import { RemoveEntryButton } from "@/components/remove-entry-button";
 import { EntryReactionButtons } from "@/components/entry-reaction-buttons";
@@ -15,13 +15,17 @@ type ReactionType = "LIKE" | "DISLIKE";
 export type EntryWithUser = WatchEntry & {
   user: Pick<User, "id" | "name" | "image">;
   group?: Pick<Group, "id" | "name" | "slug"> | null;
+  media?: Pick<
+    Media,
+    "tmdbId" | "title" | "year" | "posterUrl" | "type" | "plot" | "genre"
+  > | null;
   likeCount: number;
   dislikeCount: number;
   viewerReaction: ReactionType | null;
   sharedGroups?: Array<{ id: string; name: string }>;
 };
 
-function extractPlot(omdb: EntryWithUser["omdb"]) {
+function extractLegacyPlot(omdb: EntryWithUser["omdb"]) {
   if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
     return null;
   }
@@ -30,6 +34,53 @@ function extractPlot(omdb: EntryWithUser["omdb"]) {
     return payload.overview;
   }
   return typeof payload.Plot === "string" ? payload.Plot : null;
+}
+
+function extractLegacyGenre(omdb: EntryWithUser["omdb"]) {
+  if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
+    return null;
+  }
+  const payload = omdb as {
+    genres?: Array<{ name?: unknown }>;
+    Genre?: unknown;
+  };
+  const tmdbGenre = payload.genres?.find((genre) => genre?.name)?.name;
+  if (typeof tmdbGenre === "string") {
+    return tmdbGenre;
+  }
+  if (typeof payload.Genre === "string") {
+    return payload.Genre.split(",")[0]?.trim() || null;
+  }
+  return null;
+}
+
+function extractLegacySeriesYearRange(omdb: EntryWithUser["omdb"]) {
+  if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
+    return null;
+  }
+  const payload = omdb as {
+    first_air_date?: unknown;
+    last_air_date?: unknown;
+    in_production?: unknown;
+  };
+  if (typeof payload.first_air_date !== "string") {
+    return null;
+  }
+  const startYear = payload.first_air_date.split("-")[0];
+  if (!/^\d{4}$/.test(startYear)) {
+    return null;
+  }
+  if (payload.in_production === true) {
+    return `${startYear}–`;
+  }
+  if (typeof payload.last_air_date !== "string") {
+    return `${startYear}–`;
+  }
+  const endYear = payload.last_air_date.split("-")[0];
+  if (!/^\d{4}$/.test(endYear) || endYear === startYear) {
+    return startYear;
+  }
+  return `${startYear}–${endYear}`;
 }
 
 export function EntryCard({
@@ -50,7 +101,19 @@ export function EntryCard({
   animateIn?: boolean;
 }) {
   const canShareEntry = (shareTargets?.length ?? 0) > 0;
-  const plot = extractPlot(entry.omdb);
+  const plot = entry.media?.plot ?? extractLegacyPlot(entry.omdb);
+  const genre = entry.media?.genre ?? extractLegacyGenre(entry.omdb);
+  const legacySeriesRange =
+    entry.type === "series" ? extractLegacySeriesYearRange(entry.omdb) : null;
+  const displayYear =
+    entry.media?.year ??
+    (legacySeriesRange && !entry.year?.includes("–")
+      ? legacySeriesRange
+      : entry.year);
+  const displayTitle = entry.media?.title ?? entry.title ?? "Untitled";
+  const displayType = entry.media?.type ?? entry.type ?? "movie";
+  const posterUrl = entry.media?.posterUrl ?? entry.posterUrl ?? null;
+  const tmdbId = entry.media?.tmdbId ?? entry.imdbId ?? "";
   const [isRemoving, setIsRemoving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isRemoved, setIsRemoved] = useState(false);
@@ -104,14 +167,17 @@ export function EntryCard({
       <header className="space-y-3">
         <div className="grid grid-cols-2 items-start gap-3 sm:flex sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xl font-semibold text-white">{entry.title}</p>
-            {entry.year ? (
+            <p className="text-xl font-semibold text-white">
+              {displayTitle}
+            </p>
+            {displayYear ? (
               <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-                {entry.year}
+                {displayYear}
               </p>
             ) : null}
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              {entry.type}
+              {displayType}
+              {genre ? ` · ${genre}` : ""}
             </p>
           </div>
           <div className="flex min-w-0 flex-col items-end text-right">
@@ -143,10 +209,10 @@ export function EntryCard({
         </div>
       </header>
       <div className="flex items-start gap-4">
-        {entry.posterUrl ? (
+        {posterUrl ? (
           <Image
-            src={entry.posterUrl}
-            alt={entry.title}
+            src={posterUrl}
+            alt={displayTitle}
             width={128}
             height={192}
             sizes="(min-width: 1024px) 128px, 96px"
@@ -192,11 +258,12 @@ export function EntryCard({
               entryId={entry.id}
               canComment={canComment}
               currentUserId={currentUserId}
-              title={entry.title}
+              title={displayTitle}
             />
             {canShareEntry && shareTargets ? (
               <EntryShareModal
-                imdbId={entry.imdbId}
+                imdbId={tmdbId}
+                mediaType={displayType === "series" ? "series" : "movie"}
                 liked={entry.liked}
                 note={entry.review}
                 groups={shareTargets}
@@ -205,9 +272,10 @@ export function EntryCard({
             ) : null}
             {canRemove ? (
               <RemoveEntryButton
-                imdbId={entry.imdbId}
+                imdbId={tmdbId}
+                mediaType={displayType === "series" ? "series" : "movie"}
                 groupId={entry.groupId}
-                title={entry.title}
+                title={displayTitle}
                 iconOnly
                 refreshDelayMs={REMOVE_AFTER_MS}
                 onRemoveStart={() => {

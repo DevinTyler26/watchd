@@ -1,0 +1,1 @@
+-- No-op migration: superseded by 20251224023000_add_entry_reactions.

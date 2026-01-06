@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { fetchTitleById } from "@/lib/imdb";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +16,7 @@ const payloadSchema = z.object({
 
 const deleteSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
+  type: z.enum(["movie", "series"]).optional(),
   groupId: z.string().cuid().optional().nullable(),
 });
 
@@ -26,6 +26,17 @@ export async function GET() {
     include: {
       user: {
         select: { id: true, name: true, image: true },
+      },
+      media: {
+        select: {
+          tmdbId: true,
+          title: true,
+          year: true,
+          posterUrl: true,
+          type: true,
+          plot: true,
+          genre: true,
+        },
       },
     },
     take: 50,
@@ -55,6 +66,32 @@ export async function POST(request: Request) {
   }
 
   const targetGroupId = parsed.data.groupId ?? null;
+  const media = await prisma.media.upsert({
+    where: {
+      tmdbId_type: {
+        tmdbId: title.imdbId,
+        type: title.type,
+      },
+    },
+    update: {
+      title: title.title,
+      year: title.year,
+      posterUrl: title.posterUrl,
+      plot: title.plot,
+      genre: title.genre,
+      inProduction: title.inProduction ?? false,
+    },
+    create: {
+      tmdbId: title.imdbId,
+      type: title.type,
+      title: title.title,
+      year: title.year,
+      posterUrl: title.posterUrl,
+      plot: title.plot,
+      genre: title.genre,
+      inProduction: title.inProduction ?? false,
+    },
+  });
 
   if (targetGroupId) {
     const membership = await prisma.groupMembership.findUnique({
@@ -83,7 +120,10 @@ export async function POST(request: Request) {
     const existingInGroup = await prisma.watchEntry.findFirst({
       where: {
         groupId: targetGroupId,
-        imdbId: parsed.data.imdbId,
+        OR: [
+          { mediaId: media.id },
+          { mediaId: null, imdbId: title.imdbId },
+        ],
       },
       select: {
         id: true,
@@ -105,13 +145,14 @@ export async function POST(request: Request) {
   const existingEntry = await prisma.watchEntry.findFirst({
     where: {
       userId: session.user.id,
-      imdbId: title.imdbId,
+      OR: [
+        { mediaId: media.id },
+        { mediaId: null, imdbId: title.imdbId },
+      ],
       groupId: targetGroupId,
     },
     select: { id: true },
   });
-
-  const omdbPayload = title.raw as Prisma.InputJsonValue | undefined;
 
   const includeConfig = {
     user: {
@@ -119,6 +160,17 @@ export async function POST(request: Request) {
     },
     group: {
       select: { id: true, name: true, slug: true },
+    },
+    media: {
+      select: {
+        tmdbId: true,
+        title: true,
+        year: true,
+        posterUrl: true,
+        type: true,
+        plot: true,
+        genre: true,
+      },
     },
   } as const;
 
@@ -128,8 +180,8 @@ export async function POST(request: Request) {
     prisma.watchEntry.update({
       where: { id },
       data: {
+        mediaId: media.id,
         review: note,
-        omdb: omdbPayload,
         liked,
         groupId: targetGroupId,
       },
@@ -144,12 +196,7 @@ export async function POST(request: Request) {
       entry = await prisma.watchEntry.create({
         data: {
           userId: session.user.id,
-          imdbId: title.imdbId,
-          title: title.title,
-          year: title.year,
-          type: title.type,
-          posterUrl: title.posterUrl,
-          omdb: omdbPayload,
+          mediaId: media.id,
           review: note,
           liked,
           groupId: targetGroupId,
@@ -173,7 +220,7 @@ export async function POST(request: Request) {
           const conflict = await prisma.watchEntry.findFirst({
             where: {
               userId: session.user.id,
-              imdbId: title.imdbId,
+              mediaId: media.id,
               groupId: targetGroupId,
             },
             select: { id: true },
@@ -216,7 +263,7 @@ export async function POST(request: Request) {
           sendGroupUpdateEmail({
             to: email as string,
             groupName: entry.group?.name ?? "Your circle",
-            title: entry.title,
+            title: entry.media.title,
             addedBy,
             note,
           })
@@ -271,18 +318,29 @@ export async function DELETE(request: Request) {
     }
   }
 
-  const deleteWhere =
-    targetGroupId === null
+  const deleteWhere = media
+    ? targetGroupId === null
       ? {
           userId: session.user.id,
-          imdbId: parsed.data.imdbId,
+          mediaId: media.id,
           groupId: null,
         }
       : {
           userId: session.user.id,
-          imdbId: parsed.data.imdbId,
+          mediaId: media.id,
           groupId: targetGroupId,
-        };
+        }
+    : targetGroupId === null
+    ? {
+        userId: session.user.id,
+        imdbId: parsed.data.imdbId,
+        groupId: null,
+      }
+    : {
+        userId: session.user.id,
+        imdbId: parsed.data.imdbId,
+        groupId: targetGroupId,
+      };
 
   const result = await prisma.watchEntry.deleteMany({
     where: deleteWhere,

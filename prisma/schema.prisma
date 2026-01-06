@@ -65,11 +65,12 @@ model VerificationToken {
 model WatchEntry {
   id        String            @id @default(cuid())
   userId    String
-  imdbId    String
-  title     String
+  mediaId   String?
+  imdbId    String?
+  title     String?
   year      String?
   posterUrl String?
-  type      String            @default("movie")
+  type      String?
   omdb      Json?
   review    String?
   liked     Boolean           @default(true)
@@ -77,12 +78,30 @@ model WatchEntry {
   updatedAt DateTime          @updatedAt
   groupId   String?
   group     Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  media     Media?            @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   reactions WatchEntryReaction[]
   comments  WatchEntryComment[]
 
-  @@unique([userId, imdbId, groupId])
-  @@unique([groupId, imdbId])
+  @@unique([userId, mediaId, groupId])
+  @@unique([groupId, mediaId])
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  tmdbId       String
+  type         String
+  title        String
+  year         String?
+  posterUrl    String?
+  plot         String?
+  genre        String?
+  inProduction Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  entries      WatchEntry[]
+
+  @@unique([tmdbId, type])
 }
 
 model Group {

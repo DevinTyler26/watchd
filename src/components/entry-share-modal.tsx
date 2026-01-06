@@ -6,6 +6,7 @@ import { EntryShareMenu } from "@/components/entry-share-menu";
 
 type EntryShareModalProps = {
   imdbId: string;
+  mediaType: "movie" | "series";
   liked: boolean;
   note?: string | null;
   groups: Array<{ id: string | null; name: string }>;
@@ -14,6 +15,7 @@ type EntryShareModalProps = {
 
 export function EntryShareModal({
   imdbId,
+  mediaType,
   liked,
   note,
   groups,
@@ -114,6 +116,7 @@ export function EntryShareModal({
                 <div className="mt-4">
                   <EntryShareMenu
                     imdbId={imdbId}
+                    mediaType={mediaType}
                     liked={liked}
                     note={note}
                     groups={groups}
