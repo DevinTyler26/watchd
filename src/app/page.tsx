@@ -38,6 +38,10 @@ type FeedEntryQuery = Prisma.WatchEntryGetPayload<{
         type: true;
         plot: true;
         genre: true;
+        watchProviders: true;
+        runtimeMinutes: true;
+        seasonCount: true;
+        trailerUrl: true;
       };
     };
   };
@@ -59,6 +63,10 @@ const feedEntryInclude = {
       type: true,
       plot: true,
       genre: true,
+      watchProviders: true,
+      runtimeMinutes: true,
+      seasonCount: true,
+      trailerUrl: true,
     },
   },
 } satisfies Prisma.WatchEntryInclude;

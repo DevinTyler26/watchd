@@ -25,6 +25,7 @@ type TmdbMovieResponse = {
   release_date?: string;
   poster_path?: string | null;
   overview?: string;
+  runtime?: number | null;
   genres?: TmdbGenre[];
 };
 
@@ -37,6 +38,35 @@ type TmdbTvResponse = {
   overview?: string;
   genres?: TmdbGenre[];
   in_production?: boolean;
+  episode_run_time?: number[];
+  number_of_seasons?: number;
+};
+
+type TmdbWatchProvider = {
+  provider_name?: string;
+};
+
+type TmdbWatchProviderRegion = {
+  flatrate?: TmdbWatchProvider[];
+  free?: TmdbWatchProvider[];
+  ads?: TmdbWatchProvider[];
+  rent?: TmdbWatchProvider[];
+  buy?: TmdbWatchProvider[];
+};
+
+type TmdbWatchProviderResponse = {
+  results?: Record<string, TmdbWatchProviderRegion>;
+};
+
+type TmdbVideo = {
+  key?: string;
+  site?: string;
+  type?: string;
+  official?: boolean;
+};
+
+type TmdbVideoResponse = {
+  results?: TmdbVideo[];
 };
 
 export type ImdbTitle = {
@@ -48,6 +78,10 @@ export type ImdbTitle = {
   plot?: string;
   genre?: string;
   inProduction?: boolean;
+  watchProviders?: string[];
+  runtimeMinutes?: number;
+  seasonCount?: number;
+  trailerUrl?: string;
 };
 
 type CacheEntry = {
@@ -61,6 +95,7 @@ const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const SEARCH_DETAIL_LIMIT = 20;
 const GENRE_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
+const DEFAULT_WATCH_REGION = "US";
 
 function getSearchCache() {
   const globalCache = globalThis as typeof globalThis & {
@@ -150,6 +185,11 @@ function requireApiKey() {
   return key;
 }
 
+function getWatchRegion() {
+  const region = process.env.TMDB_WATCH_REGION?.trim().toUpperCase();
+  return region && region.length === 2 ? region : DEFAULT_WATCH_REGION;
+}
+
 export function normalizeType(type?: string | null): ImdbTitle["type"] {
   if (type === "movie" || type === "series" || type === "episode") {
     return type;
@@ -190,6 +230,33 @@ function getYearRange(
   return `${startYear}–${endYear}`;
 }
 
+function getRuntimeMinutes(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.round(value);
+}
+
+function getEpisodeRuntimeMinutes(payload: TmdbTvResponse | TmdbSearchResult) {
+  if ("episode_run_time" in payload && Array.isArray(payload.episode_run_time)) {
+    const runtime = payload.episode_run_time.find(
+      (value) => typeof value === "number" && Number.isFinite(value) && value > 0
+    );
+    return getRuntimeMinutes(runtime);
+  }
+  return undefined;
+}
+
+function getSeasonCount(payload: TmdbTvResponse | TmdbSearchResult) {
+  if ("number_of_seasons" in payload) {
+    const count = payload.number_of_seasons;
+    if (typeof count === "number" && Number.isFinite(count) && count > 0) {
+      return Math.round(count);
+    }
+  }
+  return undefined;
+}
+
 function buildPosterUrl(path?: string | null) {
   return path ? `${TMDB_IMAGE_BASE}${path}` : undefined;
 }
@@ -211,6 +278,33 @@ function getGenreFromIds(ids: number[] | undefined, map: Record<number, string>)
   return undefined;
 }
 
+function extractWatchProviders(region?: TmdbWatchProviderRegion | null) {
+  if (!region) {
+    return [];
+  }
+  const buckets: Array<keyof TmdbWatchProviderRegion> = [
+    "flatrate",
+    "free",
+    "ads",
+    "rent",
+    "buy",
+  ];
+  const seen = new Set<string>();
+  const providers: string[] = [];
+  for (const bucket of buckets) {
+    const entries = region[bucket] ?? [];
+    for (const entry of entries) {
+      const name = entry?.provider_name?.trim();
+      if (!name || seen.has(name)) {
+        continue;
+      }
+      seen.add(name);
+      providers.push(name);
+    }
+  }
+  return providers;
+}
+
 function toMovieTitle(
   payload: TmdbMovieResponse | TmdbSearchResult,
   genreName?: string
@@ -227,6 +321,9 @@ function toMovieTitle(
     posterUrl: buildPosterUrl(payload.poster_path),
     plot: payload.overview,
     genre: genreName ?? extractGenreFromPayload(payload as TmdbMovieResponse),
+    runtimeMinutes: getRuntimeMinutes(
+      (payload as TmdbMovieResponse).runtime ?? null
+    ),
   };
 }
 
@@ -254,6 +351,8 @@ function toSeriesTitle(
     plot: payload.overview,
     genre: genreName ?? extractGenreFromPayload(payload as TmdbTvResponse),
     inProduction: (payload as { in_production?: boolean }).in_production ?? false,
+    runtimeMinutes: getEpisodeRuntimeMinutes(payload),
+    seasonCount: getSeasonCount(payload),
   };
 }
 
@@ -261,6 +360,40 @@ async function fetchTmdb(path: string, params: URLSearchParams) {
   const response = await fetch(`${TMDB_BASE_URL}${path}?${params.toString()}`);
   const data = await response.json().catch(() => ({}));
   return { response, data: data as Record<string, unknown> };
+}
+
+async function fetchWatchProviders(
+  id: number,
+  type: "movie" | "tv"
+): Promise<string[] | null> {
+  const key = requireApiKey();
+  const params = new URLSearchParams({ api_key: key });
+  const { response, data } = await fetchTmdb(
+    `/${type}/${id}/watch/providers`,
+    params
+  );
+  if (!response.ok) {
+    return null;
+  }
+  const regionKey = getWatchRegion();
+  const region = (data as TmdbWatchProviderResponse).results?.[regionKey];
+  return extractWatchProviders(region);
+}
+
+function toTrailerUrl(payload: TmdbVideoResponse) {
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  const trailer = results.find(
+    (video) =>
+      video &&
+      video.site === "YouTube" &&
+      video.type === "Trailer" &&
+      video.key
+  );
+  const fallback = results.find(
+    (video) => video && video.site === "YouTube" && video.key
+  );
+  const selected = trailer ?? fallback;
+  return selected?.key ? `https://www.youtube.com/watch?v=${selected.key}` : undefined;
 }
 
 async function getGenreMaps() {
@@ -442,7 +575,23 @@ export async function fetchTitleById(
         base === "/movie"
           ? toMovieTitle(data as TmdbMovieResponse)
           : toSeriesTitle(data as TmdbTvResponse);
-      return title ?? null;
+      if (!title) {
+        return null;
+      }
+      const mediaType = base === "/movie" ? "movie" : "tv";
+      const [providers, trailerData] = await Promise.all([
+        fetchWatchProviders(id, mediaType),
+        fetchTmdb(`/${mediaType}/${id}/videos`, params),
+      ]);
+      const trailerUrl = trailerData.response.ok
+        ? toTrailerUrl(trailerData.data as TmdbVideoResponse)
+        : undefined;
+      const nextTitle: ImdbTitle = {
+        ...title,
+        ...(providers ? { watchProviders: providers } : {}),
+        ...(trailerUrl ? { trailerUrl } : {}),
+      };
+      return nextTitle;
     }
     if (response.status !== 404) {
       throw new Error(
