@@ -120,10 +120,7 @@ export async function POST(request: Request) {
     const existingInGroup = await prisma.watchEntry.findFirst({
       where: {
         groupId: targetGroupId,
-        OR: [
-          { mediaId: media.id },
-          { mediaId: null, imdbId: title.imdbId },
-        ],
+        mediaId: media.id,
       },
       select: {
         id: true,
@@ -144,10 +141,7 @@ export async function POST(request: Request) {
   const existingEntry = await prisma.watchEntry.findFirst({
     where: {
       userId: session.user.id,
-      OR: [
-        { mediaId: media.id },
-        { mediaId: null, imdbId: title.imdbId },
-      ],
+      mediaId: media.id,
       groupId: targetGroupId,
     },
     select: { id: true },
