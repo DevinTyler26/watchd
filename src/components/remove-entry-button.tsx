@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface RemoveEntryButtonProps {
   imdbId: string;
+  mediaType?: "movie" | "series";
   groupId: string | null;
   title: string;
   variant?: "danger" | "ghost";
@@ -18,6 +19,7 @@ interface RemoveEntryButtonProps {
 
 export function RemoveEntryButton({
   imdbId,
+  mediaType,
   groupId,
   title,
   variant = "danger",
@@ -43,7 +45,7 @@ export function RemoveEntryButton({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ imdbId, groupId }),
+        body: JSON.stringify({ imdbId, type: mediaType, groupId }),
       });
 
       if (!response.ok) {

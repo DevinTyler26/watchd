@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       const entries = await prisma.watchEntry.findMany({
         where: { groupId, createdAt: { gte: since } },
         select: {
-          title: true,
+          media: { select: { title: true } },
           review: true,
           createdAt: true,
           user: { select: { name: true } },
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       const shaped = entries.map((entry) => {
         const likeCount = entry.reactions.filter((r) => r.reaction === "LIKE").length;
         return {
-          title: entry.title,
+          title: entry.media?.title ?? "Untitled",
           note: entry.review,
           createdAt: entry.createdAt,
           addedBy: entry.user?.name ?? "Someone",

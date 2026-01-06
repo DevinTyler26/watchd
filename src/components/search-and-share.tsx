@@ -17,6 +17,8 @@ type SearchResult = {
   year?: string;
   type: "movie" | "series";
   posterUrl?: string;
+  plot?: string;
+  genre?: string;
 };
 
 type Suggestion = SearchResult & { source?: string };
@@ -51,6 +53,10 @@ export function SearchAndShare({
   const [skipNextSuggestionFetch, setSkipNextSuggestionFetch] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [expandedPlots, setExpandedPlots] = useState<Record<string, boolean>>(
+    {}
+  );
   const suggestionRef = useRef<HTMLDivElement | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionState, setActionState] = useState<{
@@ -110,6 +116,7 @@ export function SearchAndShare({
     setPosterErrorById({});
     setSuggestions([]);
     setShowSuggestions(false);
+    setExpandedPlots({});
   }
 
   async function runSearch(input: string) {
@@ -243,6 +250,14 @@ export function SearchAndShare({
       setTimeout(() => setActionState({ status: "idle" }), 2400);
     }
   }
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const updateMatch = () => setIsMobile(mediaQuery.matches);
+    updateMatch();
+    mediaQuery.addEventListener("change", updateMatch);
+    return () => mediaQuery.removeEventListener("change", updateMatch);
+  }, []);
 
   useEffect(() => {
     if (skipNextSuggestionFetch) {
@@ -420,16 +435,16 @@ export function SearchAndShare({
                 key={`${result.imdbId}-${index}`}
                 className="rounded-3xl border border-white/5 bg-white/5 p-2 shadow-lg shadow-black/20 sm:p-4"
               >
-                <div className="flex items-stretch gap-4">
-                  <div className="relative w-[120px] shrink-0">
+                <div className="flex items-start gap-4">
+                  <div className="flex shrink-0 flex-col items-start gap-3">
                     {result.posterUrl &&
                     result.posterUrl !== "N/A" &&
                     !posterErrorById[result.imdbId] ? (
                       <Image
                         src={result.posterUrl}
                         alt={result.title}
-                        fill
-                        sizes="120px"
+                        width={160}
+                        height={240}
                         className="rounded-2xl border border-white/10 object-cover"
                         onError={() =>
                           setPosterErrorById((prev) => ({
@@ -442,8 +457,8 @@ export function SearchAndShare({
                       <Image
                         src="/poster-unavailable.png"
                         alt="Poster unavailable"
-                        fill
-                        sizes="120px"
+                        width={160}
+                        height={240}
                         className="rounded-2xl border border-white/10 object-cover"
                       />
                     )}
@@ -451,8 +466,8 @@ export function SearchAndShare({
                   <div className="flex-1 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-lg font-semibold text-white">
-                          {result.title}
+                          <p className="text-lg font-semibold text-white">
+                            {result.title}
                           {result.year ? (
                             <span className="text-white/50">
                               {" "}
@@ -462,10 +477,48 @@ export function SearchAndShare({
                         </p>
                         <p className="text-xs uppercase tracking-[0.3em] text-white/50">
                           {result.type}
+                          {result.genre ? ` · ${result.genre}` : ""}
                         </p>
                       </div>
                       <div className="hidden sm:block" aria-hidden />
                     </div>
+                    {result.plot ? (
+                      <div className="space-y-1">
+                        <p
+                          className="text-sm text-white/70"
+                          style={
+                            isMobile &&
+                            !expandedPlots[result.imdbId] &&
+                            result.plot.length > 140
+                              ? {
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                }
+                              : undefined
+                          }
+                        >
+                          {result.plot}
+                        </p>
+                        {isMobile && result.plot.length > 140 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedPlots((prev) => ({
+                                ...prev,
+                                [result.imdbId]: !prev[result.imdbId],
+                              }))
+                            }
+                            className="px-1 py-0.5 text-xs font-semibold uppercase leading-tight tracking-[0.2em] text-white/50 transition hover:text-white"
+                          >
+                            {expandedPlots[result.imdbId]
+                              ? "Show less"
+                              : "Read more"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div>
                       <textarea
                         value={notes[result.imdbId] ?? ""}

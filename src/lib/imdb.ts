@@ -7,10 +7,16 @@ type TmdbSearchResult = {
   first_air_date?: string;
   poster_path?: string | null;
   overview?: string;
+  genre_ids?: number[];
 };
 
 type TmdbSearchResponse = {
   results?: TmdbSearchResult[];
+};
+
+type TmdbGenre = {
+  id: number;
+  name: string;
 };
 
 type TmdbMovieResponse = {
@@ -19,14 +25,18 @@ type TmdbMovieResponse = {
   release_date?: string;
   poster_path?: string | null;
   overview?: string;
+  genres?: TmdbGenre[];
 };
 
 type TmdbTvResponse = {
   id: number;
   name?: string;
   first_air_date?: string;
+  last_air_date?: string;
   poster_path?: string | null;
   overview?: string;
+  genres?: TmdbGenre[];
+  in_production?: boolean;
 };
 
 export type ImdbTitle = {
@@ -36,7 +46,8 @@ export type ImdbTitle = {
   type: "movie" | "series" | "episode";
   posterUrl?: string;
   plot?: string;
-  raw?: Record<string, unknown>;
+  genre?: string;
+  inProduction?: boolean;
 };
 
 type CacheEntry = {
@@ -48,6 +59,8 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const MAX_CACHE_KEYS = 200;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const SEARCH_DETAIL_LIMIT = 20;
+const GENRE_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
 function getSearchCache() {
   const globalCache = globalThis as typeof globalThis & {
@@ -57,6 +70,24 @@ function getSearchCache() {
     globalCache.tmdbSearchCache = new Map();
   }
   return globalCache.tmdbSearchCache;
+}
+
+function getGenreCache() {
+  const globalCache = globalThis as typeof globalThis & {
+    tmdbGenreCache?: {
+      expiresAt: number;
+      movie: Record<number, string>;
+      tv: Record<number, string>;
+    };
+  };
+  if (!globalCache.tmdbGenreCache) {
+    globalCache.tmdbGenreCache = {
+      expiresAt: 0,
+      movie: {},
+      tv: {},
+    };
+  }
+  return globalCache.tmdbGenreCache;
 }
 
 function normalizeQueryKey(query: string, type?: "movie" | "series") {
@@ -90,7 +121,7 @@ function setCachedEntry(key: string, results: ImdbTitle[]) {
 
 function getPrefixCachedResults(
   query: string,
-  type?: "movie" | "series",
+  type?: "movie" | "series"
 ): ImdbTitle[] | null {
   const normalized = query.trim().toLowerCase().replace(/\s+/g, " ");
   if (normalized.length < 3) {
@@ -103,7 +134,7 @@ function getPrefixCachedResults(
       continue;
     }
     return entry.results.filter((item) =>
-      item.title.toLowerCase().includes(normalized),
+      item.title.toLowerCase().includes(normalized)
     );
   }
   return null;
@@ -113,7 +144,7 @@ function requireApiKey() {
   const key = process.env.TMDB_API_KEY;
   if (!key) {
     throw new Error(
-      "Missing TMDB_API_KEY. Create one at https://www.themoviedb.org/settings/api",
+      "Missing TMDB_API_KEY. Create one at https://www.themoviedb.org/settings/api"
     );
   }
   return key;
@@ -137,11 +168,53 @@ function getYear(date?: string | null) {
   return /^\d{4}$/.test(year) ? year : undefined;
 }
 
+function getYearRange(
+  start?: string | null,
+  end?: string | null,
+  inProduction?: boolean
+) {
+  const startYear = getYear(start);
+  if (!startYear) {
+    return undefined;
+  }
+  if (inProduction) {
+    return `${startYear}–`;
+  }
+  const endYear = getYear(end);
+  if (!endYear) {
+    return `${startYear}–`;
+  }
+  if (endYear === startYear) {
+    return startYear;
+  }
+  return `${startYear}–${endYear}`;
+}
+
 function buildPosterUrl(path?: string | null) {
   return path ? `${TMDB_IMAGE_BASE}${path}` : undefined;
 }
 
-function toMovieTitle(payload: TmdbMovieResponse | TmdbSearchResult): ImdbTitle | null {
+function extractGenreFromPayload(payload: { genres?: TmdbGenre[] }) {
+  const genre = payload.genres?.find((item) => item?.name)?.name;
+  return genre ?? undefined;
+}
+
+function getGenreFromIds(ids: number[] | undefined, map: Record<number, string>) {
+  if (!ids?.length) {
+    return undefined;
+  }
+  for (const id of ids) {
+    if (map[id]) {
+      return map[id];
+    }
+  }
+  return undefined;
+}
+
+function toMovieTitle(
+  payload: TmdbMovieResponse | TmdbSearchResult,
+  genreName?: string
+): ImdbTitle | null {
   const title = payload.title;
   if (!title) {
     return null;
@@ -153,11 +226,14 @@ function toMovieTitle(payload: TmdbMovieResponse | TmdbSearchResult): ImdbTitle 
     type: "movie",
     posterUrl: buildPosterUrl(payload.poster_path),
     plot: payload.overview,
-    raw: payload as Record<string, unknown>,
+    genre: genreName ?? extractGenreFromPayload(payload as TmdbMovieResponse),
   };
 }
 
-function toSeriesTitle(payload: TmdbTvResponse | TmdbSearchResult): ImdbTitle | null {
+function toSeriesTitle(
+  payload: TmdbTvResponse | TmdbSearchResult,
+  genreName?: string
+): ImdbTitle | null {
   const title = payload.name;
   if (!title) {
     return null;
@@ -165,11 +241,19 @@ function toSeriesTitle(payload: TmdbTvResponse | TmdbSearchResult): ImdbTitle | 
   return {
     imdbId: String(payload.id),
     title,
-    year: getYear(payload.first_air_date),
+    year:
+      "last_air_date" in payload
+        ? getYearRange(
+            payload.first_air_date,
+            payload.last_air_date,
+            (payload as { in_production?: boolean }).in_production
+          )
+        : getYear(payload.first_air_date),
     type: "series",
     posterUrl: buildPosterUrl(payload.poster_path),
     plot: payload.overview,
-    raw: payload as Record<string, unknown>,
+    genre: genreName ?? extractGenreFromPayload(payload as TmdbTvResponse),
+    inProduction: (payload as { in_production?: boolean }).in_production ?? false,
   };
 }
 
@@ -177,6 +261,73 @@ async function fetchTmdb(path: string, params: URLSearchParams) {
   const response = await fetch(`${TMDB_BASE_URL}${path}?${params.toString()}`);
   const data = await response.json().catch(() => ({}));
   return { response, data: data as Record<string, unknown> };
+}
+
+async function getGenreMaps() {
+  const cache = getGenreCache();
+  if (Date.now() < cache.expiresAt) {
+    return cache;
+  }
+  const key = requireApiKey();
+  const params = new URLSearchParams({ api_key: key, language: "en-US" });
+  const [movieResponse, tvResponse] = await Promise.all([
+    fetchTmdb("/genre/movie/list", params),
+    fetchTmdb("/genre/tv/list", params),
+  ]);
+
+  if (!movieResponse.response.ok || !tvResponse.response.ok) {
+    return cache;
+  }
+
+  const movieGenres = Array.isArray(
+    (movieResponse.data as { genres?: TmdbGenre[] }).genres
+  )
+    ? ((movieResponse.data as { genres?: TmdbGenre[] }).genres as TmdbGenre[])
+    : [];
+  const tvGenres = Array.isArray(
+    (tvResponse.data as { genres?: TmdbGenre[] }).genres
+  )
+    ? ((tvResponse.data as { genres?: TmdbGenre[] }).genres as TmdbGenre[])
+    : [];
+
+  cache.movie = Object.fromEntries(
+    movieGenres.map((genre) => [genre.id, genre.name])
+  );
+  cache.tv = Object.fromEntries(tvGenres.map((genre) => [genre.id, genre.name]));
+  cache.expiresAt = Date.now() + GENRE_CACHE_TTL_MS;
+  return cache;
+}
+
+async function enrichSeriesTitles(titles: ImdbTitle[]) {
+  const seriesIndexes: number[] = [];
+  for (let i = 0; i < titles.length; i += 1) {
+    if (seriesIndexes.length >= SEARCH_DETAIL_LIMIT) {
+      break;
+    }
+    if (titles[i]?.type === "series") {
+      seriesIndexes.push(i);
+    }
+  }
+  if (!seriesIndexes.length) {
+    return titles;
+  }
+
+  const enriched = [...titles];
+  await Promise.all(
+    seriesIndexes.map(async (index) => {
+      const item = titles[index];
+      try {
+        const detail = await fetchTitleById(item.imdbId, "series");
+        if (detail) {
+          enriched[index] = detail;
+        }
+      } catch {
+        // Keep the search result if TMDB detail fetch fails.
+      }
+    })
+  );
+
+  return enriched;
 }
 
 export async function searchTitles(query: string, type?: "movie" | "series") {
@@ -205,35 +356,37 @@ export async function searchTitles(query: string, type?: "movie" | "series") {
     ? ((data as TmdbSearchResponse).results as TmdbSearchResult[])
     : [];
 
+  const genreMaps = await getGenreMaps();
   const titles: ImdbTitle[] = [];
   for (const result of results) {
     const mediaType =
-      type === "movie"
-        ? "movie"
-        : type === "series"
-        ? "tv"
-        : result.media_type;
+      type === "movie" ? "movie" : type === "series" ? "tv" : result.media_type;
 
     if (mediaType === "movie") {
-      const title = toMovieTitle(result);
+      const genreName = getGenreFromIds(result.genre_ids, genreMaps.movie);
+      const title = toMovieTitle(result, genreName);
       if (title) {
         titles.push(title);
       }
     } else if (mediaType === "tv") {
-      const title = toSeriesTitle(result);
+      const genreName = getGenreFromIds(result.genre_ids, genreMaps.tv);
+      const title = toSeriesTitle(result, genreName);
       if (title) {
         titles.push(title);
       }
     }
   }
 
-  return titles;
+  if (type === "movie") {
+    return titles;
+  }
+  return enrichSeriesTitles(titles);
 }
 
 export async function searchTitlesCached(
   query: string,
   type?: "movie" | "series",
-  options?: { allowPrefix?: boolean },
+  options?: { allowPrefix?: boolean }
 ) {
   const key = normalizeQueryKey(query, type);
   const cached = getCachedEntry(key);
@@ -254,7 +407,7 @@ export async function searchTitlesCached(
 export function cacheSearchResults(
   query: string,
   type: "movie" | "series" | undefined,
-  results: ImdbTitle[],
+  results: ImdbTitle[]
 ) {
   const key = normalizeQueryKey(query, type);
   setCachedEntry(key, results);
@@ -262,7 +415,7 @@ export function cacheSearchResults(
 
 export async function fetchTitleById(
   imdbId: string,
-  type?: "movie" | "series",
+  type?: "movie" | "series"
 ): Promise<ImdbTitle | null> {
   const key = requireApiKey();
   const id = Number(imdbId);
@@ -292,7 +445,9 @@ export async function fetchTitleById(
       return title ?? null;
     }
     if (response.status !== 404) {
-      throw new Error("Unable to reach TMDB right now. Please try again later.");
+      throw new Error(
+        "Unable to reach TMDB right now. Please try again later."
+      );
     }
   }
 

@@ -21,29 +21,45 @@ export async function GET(request: Request) {
   const trimmed = query.trim();
   const localRows = await prisma.watchEntry.findMany({
     where: {
-      title: { contains: trimmed, mode: "insensitive" },
-      ...(normalizedType ? { type: normalizedType } : {}),
+      media: {
+        title: { contains: trimmed, mode: "insensitive" },
+        ...(normalizedType ? { type: normalizedType } : {}),
+      },
     },
-    distinct: ["title"],
+    distinct: ["mediaId"],
     orderBy: { createdAt: "desc" },
     take: 8,
     select: {
-      imdbId: true,
-      title: true,
-      year: true,
-      type: true,
-      posterUrl: true,
+      media: {
+        select: {
+          tmdbId: true,
+          title: true,
+          year: true,
+          type: true,
+          posterUrl: true,
+          plot: true,
+          genre: true,
+        },
+      },
     },
   });
 
-  const localSuggestions: Suggestion[] = localRows.map((row) => ({
-    imdbId: row.imdbId,
-    title: row.title,
-    year: row.year ?? undefined,
-    type: row.type === "series" ? "series" : "movie",
-    posterUrl: row.posterUrl ?? undefined,
-    source: "local",
-  }));
+  const localSuggestions: Suggestion[] = localRows
+    .map((row) => row.media)
+    .filter(
+      (media): media is NonNullable<typeof media> =>
+        media !== null && media !== undefined,
+    )
+    .map((media) => ({
+      imdbId: media.tmdbId,
+      title: media.title,
+      year: media.year ?? undefined,
+      type: media.type === "series" ? "series" : "movie",
+      posterUrl: media.posterUrl ?? undefined,
+      plot: media.plot ?? undefined,
+      genre: media.genre ?? undefined,
+      source: "local",
+    }));
 
   if (localSuggestions.length >= 8) {
     return NextResponse.json({ suggestions: localSuggestions.slice(0, 8) });

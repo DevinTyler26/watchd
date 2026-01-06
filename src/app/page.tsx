@@ -29,6 +29,17 @@ type FeedEntryQuery = Prisma.WatchEntryGetPayload<{
     group: {
       select: { id: true; name: true; slug: true };
     };
+    media: {
+      select: {
+        tmdbId: true;
+        title: true;
+        year: true;
+        posterUrl: true;
+        type: true;
+        plot: true;
+        genre: true;
+      };
+    };
   };
 }>;
 
@@ -38,6 +49,17 @@ const feedEntryInclude = {
   },
   group: {
     select: { id: true, name: true, slug: true },
+  },
+  media: {
+    select: {
+      tmdbId: true,
+      title: true,
+      year: true,
+      posterUrl: true,
+      type: true,
+      plot: true,
+      genre: true,
+    },
   },
 } satisfies Prisma.WatchEntryInclude;
 
@@ -186,21 +208,21 @@ export default async function Home({
     string,
     Array<{ id: string; name: string }>
   >();
-  const uniqueImdbIds = Array.from(
-    new Set(entriesRaw.map((entry) => entry.imdbId))
-  );
+  const uniqueMediaIds = Array.from(
+    new Set(entriesRaw.map((entry) => entry.mediaId).filter(Boolean))
+  ) as string[];
   const uniqueUserIds = Array.from(
     new Set(entriesRaw.map((entry) => entry.userId))
   );
-  if (uniqueImdbIds.length && uniqueUserIds.length) {
+  if (uniqueMediaIds.length && uniqueUserIds.length) {
     const sharedRows = await prisma.watchEntry.findMany({
       where: {
         userId: { in: uniqueUserIds },
-        imdbId: { in: uniqueImdbIds },
+        mediaId: { in: uniqueMediaIds },
         groupId: { not: null },
       },
       select: {
-        imdbId: true,
+        mediaId: true,
         userId: true,
         group: {
           select: { id: true, name: true },
@@ -211,7 +233,7 @@ export default async function Home({
       if (!row.group) {
         return;
       }
-      const key = `${row.userId}:${row.imdbId}`;
+      const key = `${row.userId}:${row.mediaId}`;
       const existing = sharedGroupsByKey.get(key) ?? [];
       sharedGroupsByKey.set(key, [...existing, row.group]);
     });
@@ -227,7 +249,7 @@ export default async function Home({
       dislikeCount: counts.dislikeCount,
       viewerReaction: viewerReactionMap.get(entry.id) ?? null,
       sharedGroups:
-        sharedGroupsByKey.get(`${entry.userId}:${entry.imdbId}`) ?? [],
+        sharedGroupsByKey.get(`${entry.userId}:${entry.mediaId ?? ""}`) ?? [],
     };
   });
 
@@ -243,7 +265,11 @@ export default async function Home({
     });
   }
   const existingFeedIds = Array.from(
-    new Set(entries.map((entry) => entry.imdbId))
+    new Set(
+      entries
+        .map((entry) => entry.media?.tmdbId ?? entry.imdbId ?? "")
+        .filter(Boolean)
+    )
   );
   const shareTarget = {
     id: selectedGroup ? selectedGroup.id : null,
@@ -294,7 +320,7 @@ export default async function Home({
             <div className="grid gap-6">
               {entries.map((entry, index) => (
                 <div
-                  key={`${entry.userId}-${entry.imdbId}-${
+                  key={`${entry.userId}-${entry.media?.tmdbId ?? entry.imdbId ?? entry.id}-${
                     entry.groupId ?? "personal"
                   }`}
                   id={index === 0 ? "latest-entry" : undefined}
