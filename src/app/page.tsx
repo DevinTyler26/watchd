@@ -238,7 +238,12 @@ export default async function Home({
       sharedGroupsByKey.set(key, [...existing, row.group]);
     });
   }
-  const entries: EntryWithUser[] = entriesRaw.map((entry) => {
+  const entries: EntryWithUser[] = entriesRaw
+    .filter(
+      (entry): entry is FeedEntryQuery & { media: NonNullable<FeedEntryQuery["media"]> } =>
+        entry.media !== null,
+    )
+    .map((entry) => {
     const counts = reactionCountMap.get(entry.id) ?? {
       likeCount: 0,
       dislikeCount: 0,

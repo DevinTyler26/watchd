@@ -66,20 +66,6 @@ export async function POST(request: Request) {
   }
 
   const targetGroupId = parsed.data.groupId ?? null;
-  const media = await prisma.media.findFirst({
-    where: {
-      tmdbId: parsed.data.imdbId,
-      type: parsed.data.type,
-    },
-    select: { id: true },
-  });
-
-  if (!media) {
-    return NextResponse.json(
-      { error: "Entry not found." },
-      { status: 404 },
-    );
-  }
   const media = await prisma.media.upsert({
     where: {
       tmdbId_type: {
@@ -310,6 +296,13 @@ export async function DELETE(request: Request) {
     },
     select: { id: true },
   });
+
+  if (!media) {
+    return NextResponse.json(
+      { error: "Entry not found." },
+      { status: 404 },
+    );
+  }
 
   if (targetGroupId) {
     const membership = await prisma.groupMembership.findUnique({
