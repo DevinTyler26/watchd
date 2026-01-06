@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { fetchTitleById } from "@/lib/imdb";
 import { prisma } from "@/lib/prisma";
