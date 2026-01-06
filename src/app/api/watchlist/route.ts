@@ -11,13 +11,12 @@ const payloadSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
   type: z.enum(["movie", "series"]).optional(),
   note: z.string().max(500).optional(),
-  liked: z.boolean().optional(),
   groupId: z.string().cuid().optional().nullable(),
 });
 
 const deleteSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
-  type: z.enum(["movie", "series"]).optional(),
+  type: z.enum(["movie", "series"]),
   groupId: z.string().cuid().optional().nullable(),
 });
 
@@ -121,10 +120,7 @@ export async function POST(request: Request) {
     const existingInGroup = await prisma.watchEntry.findFirst({
       where: {
         groupId: targetGroupId,
-        OR: [
-          { mediaId: media.id },
-          { mediaId: null, imdbId: title.imdbId },
-        ],
+        mediaId: media.id,
       },
       select: {
         id: true,
@@ -141,15 +137,11 @@ export async function POST(request: Request) {
   }
 
   const note = parsed.data.note?.trim() || null;
-  const liked = parsed.data.liked ?? true;
 
   const existingEntry = await prisma.watchEntry.findFirst({
     where: {
       userId: session.user.id,
-      OR: [
-        { mediaId: media.id },
-        { mediaId: null, imdbId: title.imdbId },
-      ],
+      mediaId: media.id,
       groupId: targetGroupId,
     },
     select: { id: true },
@@ -183,7 +175,6 @@ export async function POST(request: Request) {
       data: {
         mediaId: media.id,
         review: note,
-        liked,
         groupId: targetGroupId,
       },
       include: includeConfig,
@@ -199,7 +190,6 @@ export async function POST(request: Request) {
           userId: session.user.id,
           mediaId: media.id,
           review: note,
-          liked,
           groupId: targetGroupId,
         },
         include: includeConfig,
@@ -301,6 +291,13 @@ export async function DELETE(request: Request) {
     select: { id: true },
   });
 
+  if (!media) {
+    return NextResponse.json(
+      { error: "Entry not found." },
+      { status: 404 },
+    );
+  }
+
   if (targetGroupId) {
     const membership = await prisma.groupMembership.findUnique({
       where: {
@@ -326,8 +323,8 @@ export async function DELETE(request: Request) {
     }
   }
 
-  const deleteWhere = media
-    ? targetGroupId === null
+  const deleteWhere =
+    targetGroupId === null
       ? {
           userId: session.user.id,
           mediaId: media.id,
@@ -337,18 +334,7 @@ export async function DELETE(request: Request) {
           userId: session.user.id,
           mediaId: media.id,
           groupId: targetGroupId,
-        }
-    : targetGroupId === null
-    ? {
-        userId: session.user.id,
-        imdbId: parsed.data.imdbId,
-        groupId: null,
-      }
-    : {
-        userId: session.user.id,
-        imdbId: parsed.data.imdbId,
-        groupId: targetGroupId,
-      };
+        };
 
   const result = await prisma.watchEntry.deleteMany({
     where: deleteWhere,

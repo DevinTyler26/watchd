@@ -11,7 +11,6 @@ type ShareGroup = {
 type EntryShareMenuProps = {
   imdbId: string;
   mediaType: "movie" | "series";
-  liked: boolean;
   note?: string | null;
   groups: ShareGroup[];
   sharedGroups?: Array<{ id: string; name: string }>;
@@ -21,7 +20,6 @@ type EntryShareMenuProps = {
 export function EntryShareMenu({
   imdbId,
   mediaType,
-  liked,
   note,
   groups,
   sharedGroups = [],
@@ -66,7 +64,6 @@ export function EntryShareMenu({
           imdbId,
           type: mediaType,
           note: note ?? undefined,
-          liked,
           groupId,
         }),
       });

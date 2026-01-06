@@ -238,7 +238,12 @@ export default async function Home({
       sharedGroupsByKey.set(key, [...existing, row.group]);
     });
   }
-  const entries: EntryWithUser[] = entriesRaw.map((entry) => {
+  const entries: EntryWithUser[] = entriesRaw
+    .filter(
+      (entry): entry is FeedEntryQuery & { media: NonNullable<FeedEntryQuery["media"]> } =>
+        entry.media !== null,
+    )
+    .map((entry) => {
     const counts = reactionCountMap.get(entry.id) ?? {
       likeCount: 0,
       dislikeCount: 0,
@@ -267,7 +272,7 @@ export default async function Home({
   const existingFeedIds = Array.from(
     new Set(
       entries
-        .map((entry) => entry.media?.tmdbId ?? entry.imdbId ?? "")
+        .map((entry) => entry.media.tmdbId)
         .filter(Boolean)
     )
   );
@@ -320,7 +325,7 @@ export default async function Home({
             <div className="grid gap-6">
               {entries.map((entry, index) => (
                 <div
-                  key={`${entry.userId}-${entry.media?.tmdbId ?? entry.imdbId ?? entry.id}-${
+                  key={`${entry.userId}-${entry.media.tmdbId}-${
                     entry.groupId ?? "personal"
                   }`}
                   id={index === 0 ? "latest-entry" : undefined}

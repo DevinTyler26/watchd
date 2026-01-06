@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface RemoveEntryButtonProps {
   imdbId: string;
-  mediaType?: "movie" | "series";
+  mediaType: "movie" | "series";
   groupId: string | null;
   title: string;
   variant?: "danger" | "ghost";
