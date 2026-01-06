@@ -46,7 +46,10 @@ export async function GET(request: Request) {
 
   const localSuggestions: Suggestion[] = localRows
     .map((row) => row.media)
-    .filter(Boolean)
+    .filter(
+      (media): media is NonNullable<typeof media> =>
+        media !== null && media !== undefined,
+    )
     .map((media) => ({
       imdbId: media.tmdbId,
       title: media.title,
