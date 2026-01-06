@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 interface RemoveEntryButtonProps {
@@ -33,6 +34,22 @@ export function RemoveEntryButton({
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    let target = document.getElementById("modal-root");
+    if (!target) {
+      target = document.createElement("div");
+      target.id = "modal-root";
+      document.body.appendChild(target);
+    }
+    setPortalTarget(target);
+    return () => {
+      if (target && target.childNodes.length === 0) {
+        target.remove();
+      }
+    };
+  }, []);
 
   const handleRemove = () => {
     setConfirming(true);
@@ -128,48 +145,53 @@ export function RemoveEntryButton({
         )}
       </button>
 
-      {confirming ? (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
-              Heads up
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">Remove this entry?</h3>
-            <p className="mt-3 text-sm text-white/70">
-              {title} will disappear from this signal feed. You can always add
-              it again later.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setConfirming(false)}
-                disabled={isPending}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Keep it
-              </button>
-              <button
-                type="button"
-                onClick={confirmRemove}
-                disabled={isPending}
-                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isPending ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span
-                      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                      aria-hidden
-                    />
-                    Removing...
-                  </span>
-                ) : (
-                  "Yes, remove"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {confirming && portalTarget
+        ? createPortal(
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
+              <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
+                <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
+                  Heads up
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold">
+                  Remove this entry?
+                </h3>
+                <p className="mt-3 text-sm text-white/70">
+                  {title} will disappear from this signal feed. You can always
+                  add it again later.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    disabled={isPending}
+                    className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Keep it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmRemove}
+                    disabled={isPending}
+                    className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isPending ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                          aria-hidden
+                        />
+                        Removing...
+                      </span>
+                    ) : (
+                      "Yes, remove"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            portalTarget
+          )
+        : null}
     </>
   );
 }
