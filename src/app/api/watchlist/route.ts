@@ -264,7 +264,7 @@ export async function POST(request: Request) {
           sendGroupUpdateEmail({
             to: email as string,
             groupName: entry.group?.name ?? "Your circle",
-            title: entry.media.title,
+            title: entry.media?.title ?? "Untitled",
             addedBy,
             note,
           })
@@ -293,6 +293,13 @@ export async function DELETE(request: Request) {
   }
 
   const targetGroupId = parsed.data.groupId ?? null;
+  const media = await prisma.media.findFirst({
+    where: {
+      tmdbId: parsed.data.imdbId,
+      ...(parsed.data.type ? { type: parsed.data.type } : {}),
+    },
+    select: { id: true },
+  });
 
   if (targetGroupId) {
     const membership = await prisma.groupMembership.findUnique({
