@@ -36,6 +36,10 @@ export async function GET() {
           type: true,
           plot: true,
           genre: true,
+          watchProviders: true,
+          runtimeMinutes: true,
+          seasonCount: true,
+          trailerUrl: true,
         },
       },
     },
@@ -80,6 +84,10 @@ export async function POST(request: Request) {
       plot: title.plot,
       genre: title.genre,
       inProduction: title.inProduction ?? false,
+      watchProviders: title.watchProviders ?? undefined,
+      runtimeMinutes: title.runtimeMinutes ?? undefined,
+      seasonCount: title.seasonCount ?? undefined,
+      trailerUrl: title.trailerUrl ?? undefined,
     },
     create: {
       tmdbId: title.imdbId,
@@ -90,6 +98,10 @@ export async function POST(request: Request) {
       plot: title.plot,
       genre: title.genre,
       inProduction: title.inProduction ?? false,
+      watchProviders: title.watchProviders ?? [],
+      runtimeMinutes: title.runtimeMinutes ?? null,
+      seasonCount: title.seasonCount ?? null,
+      trailerUrl: title.trailerUrl ?? null,
     },
   });
 
@@ -163,6 +175,10 @@ export async function POST(request: Request) {
         type: true,
         plot: true,
         genre: true,
+        watchProviders: true,
+        runtimeMinutes: true,
+        seasonCount: true,
+        trailerUrl: true,
       },
     },
   } as const;
