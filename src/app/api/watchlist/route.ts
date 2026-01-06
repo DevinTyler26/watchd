@@ -11,13 +11,12 @@ const payloadSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
   type: z.enum(["movie", "series"]).optional(),
   note: z.string().max(500).optional(),
-  liked: z.boolean().optional(),
   groupId: z.string().cuid().optional().nullable(),
 });
 
 const deleteSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
-  type: z.enum(["movie", "series"]).optional(),
+  type: z.enum(["movie", "series"]),
   groupId: z.string().cuid().optional().nullable(),
 });
 
@@ -67,6 +66,20 @@ export async function POST(request: Request) {
   }
 
   const targetGroupId = parsed.data.groupId ?? null;
+  const media = await prisma.media.findFirst({
+    where: {
+      tmdbId: parsed.data.imdbId,
+      type: parsed.data.type,
+    },
+    select: { id: true },
+  });
+
+  if (!media) {
+    return NextResponse.json(
+      { error: "Entry not found." },
+      { status: 404 },
+    );
+  }
   const media = await prisma.media.upsert({
     where: {
       tmdbId_type: {
@@ -141,7 +154,6 @@ export async function POST(request: Request) {
   }
 
   const note = parsed.data.note?.trim() || null;
-  const liked = parsed.data.liked ?? true;
 
   const existingEntry = await prisma.watchEntry.findFirst({
     where: {
@@ -183,7 +195,6 @@ export async function POST(request: Request) {
       data: {
         mediaId: media.id,
         review: note,
-        liked,
         groupId: targetGroupId,
       },
       include: includeConfig,
@@ -199,7 +210,6 @@ export async function POST(request: Request) {
           userId: session.user.id,
           mediaId: media.id,
           review: note,
-          liked,
           groupId: targetGroupId,
         },
         include: includeConfig,
@@ -326,8 +336,8 @@ export async function DELETE(request: Request) {
     }
   }
 
-  const deleteWhere = media
-    ? targetGroupId === null
+  const deleteWhere =
+    targetGroupId === null
       ? {
           userId: session.user.id,
           mediaId: media.id,
@@ -337,18 +347,7 @@ export async function DELETE(request: Request) {
           userId: session.user.id,
           mediaId: media.id,
           groupId: targetGroupId,
-        }
-    : targetGroupId === null
-    ? {
-        userId: session.user.id,
-        imdbId: parsed.data.imdbId,
-        groupId: null,
-      }
-    : {
-        userId: session.user.id,
-        imdbId: parsed.data.imdbId,
-        groupId: targetGroupId,
-      };
+        };
 
   const result = await prisma.watchEntry.deleteMany({
     where: deleteWhere,

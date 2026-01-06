@@ -174,7 +174,6 @@ export function SearchAndShare({
         body: JSON.stringify({
           imdbId: result.imdbId,
           type: result.type,
-          liked: likedSelection ?? true,
           groupId: target.id ?? undefined,
         }),
       });

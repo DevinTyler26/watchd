@@ -15,73 +15,16 @@ type ReactionType = "LIKE" | "DISLIKE";
 export type EntryWithUser = WatchEntry & {
   user: Pick<User, "id" | "name" | "image">;
   group?: Pick<Group, "id" | "name" | "slug"> | null;
-  media?: Pick<
+  media: Pick<
     Media,
     "tmdbId" | "title" | "year" | "posterUrl" | "type" | "plot" | "genre"
-  > | null;
+  >;
   likeCount: number;
   dislikeCount: number;
   viewerReaction: ReactionType | null;
   sharedGroups?: Array<{ id: string; name: string }>;
 };
 
-function extractLegacyPlot(omdb: EntryWithUser["omdb"]) {
-  if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
-    return null;
-  }
-  const payload = omdb as { Plot?: unknown; overview?: unknown };
-  if (typeof payload.overview === "string") {
-    return payload.overview;
-  }
-  return typeof payload.Plot === "string" ? payload.Plot : null;
-}
-
-function extractLegacyGenre(omdb: EntryWithUser["omdb"]) {
-  if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
-    return null;
-  }
-  const payload = omdb as {
-    genres?: Array<{ name?: unknown }>;
-    Genre?: unknown;
-  };
-  const tmdbGenre = payload.genres?.find((genre) => genre?.name)?.name;
-  if (typeof tmdbGenre === "string") {
-    return tmdbGenre;
-  }
-  if (typeof payload.Genre === "string") {
-    return payload.Genre.split(",")[0]?.trim() || null;
-  }
-  return null;
-}
-
-function extractLegacySeriesYearRange(omdb: EntryWithUser["omdb"]) {
-  if (!omdb || typeof omdb !== "object" || Array.isArray(omdb)) {
-    return null;
-  }
-  const payload = omdb as {
-    first_air_date?: unknown;
-    last_air_date?: unknown;
-    in_production?: unknown;
-  };
-  if (typeof payload.first_air_date !== "string") {
-    return null;
-  }
-  const startYear = payload.first_air_date.split("-")[0];
-  if (!/^\d{4}$/.test(startYear)) {
-    return null;
-  }
-  if (payload.in_production === true) {
-    return `${startYear}–`;
-  }
-  if (typeof payload.last_air_date !== "string") {
-    return `${startYear}–`;
-  }
-  const endYear = payload.last_air_date.split("-")[0];
-  if (!/^\d{4}$/.test(endYear) || endYear === startYear) {
-    return startYear;
-  }
-  return `${startYear}–${endYear}`;
-}
 
 export function EntryCard({
   entry,
@@ -101,19 +44,13 @@ export function EntryCard({
   animateIn?: boolean;
 }) {
   const canShareEntry = (shareTargets?.length ?? 0) > 0;
-  const plot = entry.media?.plot ?? extractLegacyPlot(entry.omdb);
-  const genre = entry.media?.genre ?? extractLegacyGenre(entry.omdb);
-  const legacySeriesRange =
-    entry.type === "series" ? extractLegacySeriesYearRange(entry.omdb) : null;
-  const displayYear =
-    entry.media?.year ??
-    (legacySeriesRange && !entry.year?.includes("–")
-      ? legacySeriesRange
-      : entry.year);
-  const displayTitle = entry.media?.title ?? entry.title ?? "Untitled";
-  const displayType = entry.media?.type ?? entry.type ?? "movie";
-  const posterUrl = entry.media?.posterUrl ?? entry.posterUrl ?? null;
-  const tmdbId = entry.media?.tmdbId ?? entry.imdbId ?? "";
+  const plot = entry.media.plot;
+  const genre = entry.media.genre;
+  const displayYear = entry.media.year;
+  const displayTitle = entry.media.title;
+  const displayType = entry.media.type;
+  const posterUrl = entry.media.posterUrl;
+  const tmdbId = entry.media.tmdbId;
   const [isRemoving, setIsRemoving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isRemoved, setIsRemoved] = useState(false);
@@ -261,10 +198,9 @@ export function EntryCard({
               title={displayTitle}
             />
             {canShareEntry && shareTargets ? (
-              <EntryShareModal
+            <EntryShareModal
                 imdbId={tmdbId}
                 mediaType={displayType === "series" ? "series" : "movie"}
-                liked={entry.liked}
                 note={entry.review}
                 groups={shareTargets}
                 sharedGroups={entry.sharedGroups ?? []}
