@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return jsonResponse({ error: "Sign in required." }, { status: 401 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "groups:join",
     max: 6,
     intervalMs: 60_000,

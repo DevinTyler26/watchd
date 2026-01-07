@@ -43,7 +43,7 @@ export async function POST(
   }
 
   const { entryId } = await params;
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "comments:create",
     max: 12,
     intervalMs: 60_000,

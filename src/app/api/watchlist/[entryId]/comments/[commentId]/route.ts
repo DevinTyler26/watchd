@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const { entryId, commentId } = await params;
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "comments:update",
     max: 20,
     intervalMs: 60_000,
@@ -113,7 +113,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 
   const { entryId, commentId } = await params;
-  const limiter = rateLimit(getRateLimitKey(_request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(_request, session.user.id), {
     keyPrefix: "comments:delete",
     max: 20,
     intervalMs: 60_000,

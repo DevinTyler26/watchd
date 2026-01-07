@@ -140,7 +140,7 @@ export function EntryComments({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body: draft.trim() }),
-          retries: 1,
+          retries: 0,
         }
       );
       if (data.comment) {
@@ -149,6 +149,10 @@ export function EntryComments({
         setShowForm(true);
       }
     } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setError("You're commenting too quickly. Try again in a moment.");
+        return;
+      }
       if (err instanceof ApiError && err.requestId) {
         void reportClientError({
           message: err.message,

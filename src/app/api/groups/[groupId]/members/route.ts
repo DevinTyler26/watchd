@@ -87,7 +87,7 @@ export async function PATCH(
   if (!session?.user?.id) {
     return jsonResponse({ error: "Sign in required." }, { status: 401 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "groups:members:update",
     max: 12,
     intervalMs: 60_000,
@@ -189,7 +189,7 @@ export async function DELETE(
   if (!session?.user?.id) {
     return jsonResponse({ error: "Sign in required." }, { status: 401 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "groups:members:remove",
     max: 12,
     intervalMs: 60_000,

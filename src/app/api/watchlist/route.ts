@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "watchlist:create",
     max: 10,
     intervalMs: 60_000,
@@ -305,7 +305,7 @@ export async function DELETE(request: Request) {
   if (!session?.user?.id) {
     return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
     keyPrefix: "watchlist:delete",
     max: 10,
     intervalMs: 60_000,

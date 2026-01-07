@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   if (!user) {
     return jsonResponse({ error: "Admins only." }, { status: 403 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, user.id), {
     keyPrefix: "admin:allowlist:add",
     max: 20,
     intervalMs: 60_000,
@@ -75,7 +75,7 @@ export async function DELETE(request: Request) {
   if (!user) {
     return jsonResponse({ error: "Admins only." }, { status: 403 });
   }
-  const limiter = rateLimit(getRateLimitKey(request, user.id), {
+  const limiter = await rateLimit(getRateLimitKey(request, user.id), {
     keyPrefix: "admin:allowlist:delete",
     max: 20,
     intervalMs: 60_000,

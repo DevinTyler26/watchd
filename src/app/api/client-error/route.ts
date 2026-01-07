@@ -3,7 +3,7 @@ import { jsonResponse } from "@/lib/api-response";
 import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
-  const limiter = rateLimit(getRateLimitKey(request), {
+  const limiter = await rateLimit(getRateLimitKey(request), {
     keyPrefix: "client-error",
     max: 60,
     intervalMs: 60_000,
