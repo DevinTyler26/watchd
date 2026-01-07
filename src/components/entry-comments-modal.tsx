@@ -156,6 +156,7 @@ export function EntryCommentsModal({
                     currentUserId={currentUserId}
                     onCountChange={setCount}
                     onCommentsChange={(comments) => {
+                      setPrefetchedComments(comments);
                       setCachedComments(entryId, comments);
                     }}
                     hideHeader

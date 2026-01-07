@@ -4,6 +4,8 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const bodySchema = z.object({
   body: z.string().trim().min(1, "Comment cannot be empty").max(500, "Keep comments under 500 characters"),
 });
@@ -25,7 +27,10 @@ export async function GET(
     },
   });
 
-  return NextResponse.json({ comments });
+  return NextResponse.json(
+    { comments },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
 
 export async function POST(
