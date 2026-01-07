@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 type ReactionType = "LIKE" | "DISLIKE";
 
@@ -17,7 +21,7 @@ async function assertAccess(entryId: string, userId: string) {
   if (!entry) {
     return {
       entry: null,
-      error: NextResponse.json({ error: "Entry not found." }, { status: 404 }),
+      error: jsonResponse({ error: "Entry not found." }, { status: 404 }),
     };
   }
 
@@ -34,7 +38,7 @@ async function assertAccess(entryId: string, userId: string) {
     if (!membership || membership.status !== "ACTIVE") {
       return {
         entry: null,
-        error: NextResponse.json(
+        error: jsonResponse(
           { error: "You are not part of that group." },
           { status: 403 }
         ),
@@ -43,7 +47,7 @@ async function assertAccess(entryId: string, userId: string) {
   } else if (entry.userId !== userId) {
     return {
       entry: null,
-      error: NextResponse.json(
+      error: jsonResponse(
         { error: "This entry belongs to someone else." },
         { status: 403 }
       ),
@@ -64,10 +68,22 @@ export async function POST(
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
 
   const { entryId } = await params;
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "reactions:create",
+    max: 30,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many reactions. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
+  }
   const { error } = await assertAccess(entryId, session.user.id);
 
   if (error) {
@@ -78,7 +94,7 @@ export async function POST(
   const reaction = payload?.reaction;
 
   if (!reaction || !VALID_REACTIONS.has(reaction)) {
-    return NextResponse.json({ error: "Invalid reaction." }, { status: 400 });
+    return jsonResponse({ error: "Invalid reaction." }, { status: 400 });
   }
 
   await prisma.$executeRaw`
@@ -89,7 +105,7 @@ export async function POST(
   `;
 
   revalidatePath("/");
-  return NextResponse.json({ success: true });
+  return jsonResponse({ success: true });
 }
 
 export async function DELETE(
@@ -99,10 +115,22 @@ export async function DELETE(
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
 
   const { entryId } = await params;
+  const limiter = await rateLimit(getRateLimitKey(_request, session.user.id), {
+    keyPrefix: "reactions:delete",
+    max: 30,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many reactions. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
+  }
   const { error } = await assertAccess(entryId, session.user.id);
 
   if (error) {
@@ -115,5 +143,5 @@ export async function DELETE(
   `;
 
   revalidatePath("/");
-  return NextResponse.json({ success: true });
+  return jsonResponse({ success: true });
 }

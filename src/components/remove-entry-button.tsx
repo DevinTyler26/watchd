@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { apiJson, ApiError, OfflineQueuedError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 interface RemoveEntryButtonProps {
   imdbId: string;
@@ -52,25 +54,16 @@ export function RemoveEntryButton({
 
   const deleteEntry = async () => {
     try {
-      const response = await fetch("/api/watchlist", {
+      await apiJson("/api/watchlist", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ imdbId, type: mediaType, groupId }),
+        retries: 1,
+        queueOnOffline: true,
+        requestLabel: "Remove entry",
       });
-
-      if (!response.ok) {
-        onRemoveError?.();
-        const payload = await response.json().catch(() => ({}));
-        const message =
-          typeof payload?.error === "string"
-            ? payload.error
-            : "Could not remove entry.";
-        // keep simple alert to bubble error without extra UI surface
-        alert(message);
-        return;
-      }
 
       setConfirming(false);
       if (refreshDelayMs > 0) {
@@ -79,9 +72,21 @@ export function RemoveEntryButton({
         router.refresh();
       }
       onRemoveSuccess?.();
-    } catch {
+    } catch (err) {
+      if (err instanceof OfflineQueuedError) {
+        setConfirming(false);
+        alert("You're offline. We'll remove this entry when you reconnect.");
+        return;
+      }
       onRemoveError?.();
-      alert("Could not remove entry.");
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { imdbId, groupId, action: "remove-entry" },
+        });
+      }
+      alert(err instanceof Error ? err.message : "Could not remove entry.");
     }
   };
 

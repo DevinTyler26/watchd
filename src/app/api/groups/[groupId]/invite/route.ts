@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -19,7 +21,19 @@ export async function POST(
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "groups:invite",
+    max: 6,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many invites. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const { groupId } = await params;
@@ -27,9 +41,9 @@ export async function POST(
   const parsed = inviteSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -48,9 +62,9 @@ export async function POST(
     (membership.role === "OWNER" || membership.role === "EDITOR");
 
   if (!canInvite) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Only owners or editors can invite members." },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -60,10 +74,7 @@ export async function POST(
   });
 
   if (!group) {
-    return NextResponse.json(
-      { error: "Group not found." },
-      { status: 404 },
-    );
+    return jsonResponse({ error: "Group not found." }, { status: 404 });
   }
 
   const token = randomUUID();
@@ -87,9 +98,9 @@ export async function POST(
     });
 
     if (existingMembership && existingMembership.status === "ACTIVE") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "That email already belongs to the circle." },
-        { status: 400 },
+        { status: 400 }
       );
     }
   }
@@ -97,9 +108,9 @@ export async function POST(
   const inviteRole = parsed.data.role ?? "EDITOR";
 
   if (inviteRole === "OWNER" && membership.role !== "OWNER") {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Only the current owner can invite another owner." },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -127,7 +138,7 @@ export async function POST(
     inviterName: session.user.name,
   });
 
-  return NextResponse.json({
+  return jsonResponse({
     token: invite.token,
     expiresAt: invite.expiresAt,
     emailSent: emailResult.sent,

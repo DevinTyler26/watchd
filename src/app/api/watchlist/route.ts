@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -6,6 +5,10 @@ import { auth } from "@/auth";
 import { fetchTitleById } from "@/lib/imdb";
 import { prisma } from "@/lib/prisma";
 import { sendGroupUpdateEmail } from "@/lib/email";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 const payloadSchema = z.object({
   imdbId: z.string().min(2, "TMDB id is required"),
@@ -46,27 +49,42 @@ export async function GET() {
     take: 50,
   });
 
-  return NextResponse.json({ entries });
+  return jsonResponse({ entries }, { noStore: true });
 }
 
 export async function POST(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "watchlist:create",
+    max: 10,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many requests. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = payloadSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().formErrors.join(", ") }, { status: 400 });
+    return jsonResponse(
+      { error: parsed.error.flatten().formErrors.join(", ") },
+      { status: 400 }
+    );
   }
 
   const title = await fetchTitleById(parsed.data.imdbId, parsed.data.type);
 
   if (!title) {
-    return NextResponse.json({ error: "TMDB title not found" }, { status: 404 });
+    return jsonResponse({ error: "TMDB title not found" }, { status: 404 });
   }
 
   const targetGroupId = parsed.data.groupId ?? null;
@@ -116,14 +134,14 @@ export async function POST(request: Request) {
     });
 
     if (!membership || membership.status !== "ACTIVE") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "You are not part of that group." },
         { status: 403 },
       );
     }
 
     if (membership.role === "VIEWER") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "View-only members cannot add titles to this group." },
         { status: 403 },
       );
@@ -144,7 +162,7 @@ export async function POST(request: Request) {
       const message = existingInGroup.user?.name
         ? `${existingInGroup.user.name} already shared this to the group. React or add a comment on the existing card.`
         : "That title is already in this group. React or add a comment on the existing card.";
-      return NextResponse.json({ error: message }, { status: 409 });
+      return jsonResponse({ error: message }, { status: 409 });
     }
   }
 
@@ -215,7 +233,7 @@ export async function POST(request: Request) {
         if (error.code === "P2002") {
           // Uniqueness conflicts: either user's own personal entry or a group duplicate.
           if (targetGroupId) {
-            return NextResponse.json(
+            return jsonResponse(
               {
                 error:
                   "That title is already in this group. React or add a comment on the existing card.",
@@ -278,23 +296,35 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ entry });
+  return jsonResponse({ entry });
 }
 
 export async function DELETE(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "watchlist:delete",
+    max: 10,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many deletes. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = deleteSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -308,9 +338,9 @@ export async function DELETE(request: Request) {
   });
 
   if (!media) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Entry not found." },
-      { status: 404 },
+      { status: 404 }
     );
   }
 
@@ -325,16 +355,16 @@ export async function DELETE(request: Request) {
     });
 
     if (!membership || membership.status !== "ACTIVE") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "You are not part of that group." },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
     if (membership.role === "VIEWER") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "View-only members cannot remove titles from this group." },
-        { status: 403 },
+        { status: 403 }
       );
     }
   }
@@ -357,12 +387,12 @@ export async function DELETE(request: Request) {
   });
 
   if (result.count === 0) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Entry not found." },
-      { status: 404 },
+      { status: 404 }
     );
   }
 
   revalidatePath("/");
-  return NextResponse.json({ success: true });
+  return jsonResponse({ success: true });
 }

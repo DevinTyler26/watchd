@@ -1,5 +1,6 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type NextAuthOptions, getServerSession } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/prisma";
 
@@ -30,9 +31,35 @@ export const authOptions: NextAuthOptions = {
         },
       },
     }),
+    ...(process.env.E2E_AUTH === "1"
+      ? [
+          Credentials({
+            name: "E2E",
+            credentials: {
+              email: { label: "Email", type: "email" },
+            },
+            async authorize(credentials) {
+              const email = credentials?.email?.toLowerCase();
+              if (!email) return null;
+              const user = await prisma.user.upsert({
+                where: { email },
+                update: {},
+                create: {
+                  email,
+                  name: "E2E User",
+                },
+              });
+              return { id: user.id, email: user.email, name: user.name };
+            },
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      if (account?.provider === "credentials" && process.env.E2E_AUTH === "1") {
+        return true;
+      }
       // Admins bypass allowlist.
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },

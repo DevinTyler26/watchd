@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type SharedWatchlistHeroProps = {
   signedIn: boolean;
@@ -29,17 +31,16 @@ export function SharedWatchlistHero({
       setError(null);
       void (async () => {
         try {
-          const response = await fetch("/api/user/hero-dismiss", {
-            method: "POST",
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to dismiss hero");
-          }
-
+          await apiJson("/api/user/hero-dismiss", { method: "POST", retries: 1 });
           setDismissed(true);
         } catch (err) {
-          console.error(err);
+          if (err instanceof ApiError && err.requestId) {
+            void reportClientError({
+              message: err.message,
+              requestId: err.requestId,
+              context: { action: "dismiss-hero" },
+            });
+          }
           setError("Could not hide this right now. Try again in a bit.");
         }
       })();

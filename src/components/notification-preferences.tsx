@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type GroupPref = {
   id: string;
@@ -19,6 +21,7 @@ export function NotificationPreferences({ groups }: Props) {
   const [isPending, startTransition] = useTransition();
 
   const updatePref = (groupId: string, patch: Partial<GroupPref>) => {
+    const previous = prefs;
     setPrefs((prev) =>
       prev.map((g) => (g.id === groupId ? { ...g, ...patch } : g))
     );
@@ -26,7 +29,7 @@ export function NotificationPreferences({ groups }: Props) {
       setMessage(null);
       void (async () => {
         try {
-          const response = await fetch("/api/notifications", {
+          await apiJson("/api/notifications", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -34,19 +37,23 @@ export function NotificationPreferences({ groups }: Props) {
               instant: patch.instant,
               weekly: patch.weekly,
             }),
+            retries: 1,
           });
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(payload.error ?? "Unable to save preferences.");
-          }
           setMessage("Saved");
           setTimeout(() => setMessage(null), 2000);
         } catch (err) {
+          if (err instanceof ApiError && err.requestId) {
+            void reportClientError({
+              message: err.message,
+              requestId: err.requestId,
+              context: { action: "update-notifications", groupId },
+            });
+          }
           setMessage(
             err instanceof Error ? err.message : "Unable to save preferences."
           );
           // revert optimistic change
-          setPrefs(groups);
+          setPrefs(previous);
         }
       })();
     });

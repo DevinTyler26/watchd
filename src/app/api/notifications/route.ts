@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
   groupId: z.string().cuid(),
@@ -13,7 +16,7 @@ const updateSchema = z.object({
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
   }
 
   const memberships = await prisma.groupMembership.findMany({
@@ -29,30 +32,45 @@ export async function GET() {
   });
   const prefMap = new Map(prefs.map((p) => [p.groupId, p]));
 
-  return NextResponse.json({
-    groups: memberships.map((m) => ({
-      id: m.group.id,
-      name: m.group.name,
-      shareCode: m.group.shareCode,
-      slug: m.group.slug,
-      instant: prefMap.get(m.group.id)?.instant ?? false,
-      weekly: prefMap.get(m.group.id)?.weekly ?? false,
-    })),
-  });
+  return jsonResponse(
+    {
+      groups: memberships.map((m) => ({
+        id: m.group.id,
+        name: m.group.name,
+        shareCode: m.group.shareCode,
+        slug: m.group.slug,
+        instant: prefMap.get(m.group.id)?.instant ?? false,
+        weekly: prefMap.get(m.group.id)?.weekly ?? false,
+      })),
+    },
+    { noStore: true }
+  );
 }
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "notifications:update",
+    max: 12,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many updates. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -66,9 +84,9 @@ export async function POST(request: Request) {
   });
 
   if (!membership || membership.status !== "ACTIVE") {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "You are not part of that group." },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -87,5 +105,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ success: true });
+  return jsonResponse({ success: true });
 }

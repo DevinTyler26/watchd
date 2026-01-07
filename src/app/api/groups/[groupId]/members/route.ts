@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
   userId: z.string().cuid(),
@@ -41,13 +44,13 @@ export async function GET(
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
   }
 
   const { groupId } = await params;
   const access = await assertManager(groupId, session.user.id);
   if (!access.allowed) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    return jsonResponse({ error: "Not authorized." }, { status: 403 });
   }
 
   const members = await prisma.groupMembership.findMany({
@@ -61,16 +64,19 @@ export async function GET(
     orderBy: [{ role: "asc" }, { user: { name: "asc" } }],
   });
 
-  return NextResponse.json({
-    members: members.map((m) => ({
-      userId: m.userId,
-      role: m.role,
-      status: m.status,
-      name: m.user?.name ?? "Unknown",
-      email: m.user?.email ?? null,
-      image: m.user?.image ?? null,
-    })),
-  });
+  return jsonResponse(
+    {
+      members: members.map((m) => ({
+        userId: m.userId,
+        role: m.role,
+        status: m.status,
+        name: m.user?.name ?? "Unknown",
+        email: m.user?.email ?? null,
+        image: m.user?.image ?? null,
+      })),
+    },
+    { noStore: true }
+  );
 }
 
 export async function PATCH(
@@ -79,30 +85,42 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "groups:members:update",
+    max: 12,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many updates. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const { groupId } = await params;
   const access = await assertManager(groupId, session.user.id);
   if (!access.allowed) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    return jsonResponse({ error: "Not authorized." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   const { userId, role } = parsed.data;
 
   if (role === "OWNER" && access.role !== "OWNER") {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Only the current owner can promote another owner." },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -112,13 +130,13 @@ export async function PATCH(
   });
 
   if (!target || target.status !== "ACTIVE") {
-    return NextResponse.json({ error: "Member not found." }, { status: 404 });
+    return jsonResponse({ error: "Member not found." }, { status: 404 });
   }
 
   if (target.role === "OWNER" && role !== "OWNER") {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Transfer ownership before changing this role." },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -151,7 +169,7 @@ export async function PATCH(
     });
   });
 
-  return NextResponse.json({
+  return jsonResponse({
     member: {
       userId: result.userId,
       role: result.role,
@@ -169,28 +187,40 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
+  }
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "groups:members:remove",
+    max: 12,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many removals. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const { groupId } = await params;
   const access = await assertManager(groupId, session.user.id);
   if (!access.allowed) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    return jsonResponse({ error: "Not authorized." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = removeSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   if (parsed.data.userId === session.user.id) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Use the leave flow to remove yourself." },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -200,13 +230,13 @@ export async function DELETE(
   });
 
   if (!target) {
-    return NextResponse.json({ error: "Member not found." }, { status: 404 });
+    return jsonResponse({ error: "Member not found." }, { status: 404 });
   }
 
   if (target.role === "OWNER") {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Transfer ownership before removing this member." },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -214,5 +244,5 @@ export async function DELETE(
     where: { groupId_userId: { groupId, userId: parsed.data.userId } },
   });
 
-  return NextResponse.json({ success: true });
+  return jsonResponse({ success: true });
 }

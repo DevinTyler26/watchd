@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cacheSearchResults, searchTitles, searchTitlesCached, type ImdbTitle } from "@/lib/imdb";
+import { jsonResponse } from "@/lib/api-response";
 
 type Suggestion = ImdbTitle & { source: "local" | "cache" | "prefix-cache" | "tmdb" };
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const normalizedType = normalizeType(typeParam);
 
   if (!query || query.trim().length < 2) {
-    return NextResponse.json({ suggestions: [] });
+    return jsonResponse({ suggestions: [] });
   }
 
   const trimmed = query.trim();
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     }));
 
   if (localSuggestions.length >= 8) {
-    return NextResponse.json({ suggestions: localSuggestions.slice(0, 8) });
+    return jsonResponse({ suggestions: localSuggestions.slice(0, 8) });
   }
 
   let { results, source } = await searchTitlesCached(trimmed, normalizedType, {
@@ -87,5 +87,5 @@ export async function GET(request: Request) {
     seen.add(item.imdbId);
   }
 
-  return NextResponse.json({ suggestions: merged });
+  return jsonResponse({ suggestions: merged });
 }

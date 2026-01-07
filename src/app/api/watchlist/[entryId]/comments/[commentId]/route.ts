@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
   body: z.string().trim().min(1, "Comment cannot be empty").max(500, "Keep comments under 500 characters"),
@@ -56,20 +58,38 @@ async function ensureOwnership(
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
 
   const { entryId, commentId } = await params;
+  const limiter = await rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "comments:update",
+    max: 20,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many edits. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
+  }
 
   const ownership = await ensureOwnership(entryId, commentId, session.user.id);
   if ("error" in ownership) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+    return jsonResponse(
+      { error: ownership.error },
+      { status: ownership.status }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten().formErrors.join(", ") }, { status: 400 });
+    return jsonResponse(
+      { error: parsed.error.flatten().formErrors.join(", ") },
+      { status: 400 }
+    );
   }
 
   const updated = await prisma.watchEntryComment.update({
@@ -83,21 +103,36 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     },
   });
 
-  return NextResponse.json({ comment: updated });
+  return jsonResponse({ comment: updated });
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
 
   const { entryId, commentId } = await params;
+  const limiter = await rateLimit(getRateLimitKey(_request, session.user.id), {
+    keyPrefix: "comments:delete",
+    max: 20,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many deletes. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
+  }
   const ownership = await ensureOwnership(entryId, commentId, session.user.id);
   if ("error" in ownership) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+    return jsonResponse(
+      { error: ownership.error },
+      { status: ownership.status }
+    );
   }
 
   await prisma.watchEntryComment.delete({ where: { id: commentId } });
-  return NextResponse.json({ ok: true });
+  return jsonResponse({ ok: true });
 }

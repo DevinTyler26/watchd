@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { EntryComments } from "@/components/entry-comments";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 import { getCachedComments, setCachedComments } from "@/lib/comments-cache";
+import { commentsResponseSchema } from "@/lib/comment-schemas";
 
 type EntryCommentsModalProps = {
   entryId: string;
@@ -52,19 +55,27 @@ export function EntryCommentsModal({
         return;
       }
       try {
-        const response = await fetch(`/api/watchlist/${entryId}/comments`, {
-          cache: "no-store",
-        });
-        const payload = await response.json();
         if (!cancelled) {
-          const comments = Array.isArray(payload.comments)
-            ? (payload.comments as CommentPayload[])
+          const { data } = await apiJson<{ comments: CommentPayload[] }>(
+            `/api/watchlist/${entryId}/comments`,
+            { cache: "no-store", retries: 2 },
+            commentsResponseSchema
+          );
+          const comments = Array.isArray(data.comments)
+            ? (data.comments as CommentPayload[])
             : [];
           setPrefetchedComments(comments);
           setCount(comments.length);
           setCachedComments(entryId, comments);
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof ApiError && err.requestId) {
+          void reportClientError({
+            message: err.message,
+            requestId: err.requestId,
+            context: { entryId, action: "prefetch-comments" },
+          });
+        }
         if (!cancelled) {
           setCount(0);
           setPrefetchedComments(undefined);
