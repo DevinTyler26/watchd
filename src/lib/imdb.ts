@@ -92,6 +92,7 @@ type CacheEntry = {
 };
 
 const CACHE_TTL_MS = 1000 * 60 * 60;
+const SUGGEST_CACHE_TTL_MS = 1000 * 60 * 15;
 const MAX_CACHE_KEYS = 200;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
@@ -165,8 +166,12 @@ async function getSharedCachedEntry(key: string) {
   return redisGetJson<ImdbTitle[]>(getRedisSearchKey(key));
 }
 
-async function setSharedCachedEntry(key: string, results: ImdbTitle[]) {
-  await redisSetJson(getRedisSearchKey(key), results, CACHE_TTL_MS);
+async function setSharedCachedEntry(
+  key: string,
+  results: ImdbTitle[],
+  ttlMs: number
+) {
+  await redisSetJson(getRedisSearchKey(key), results, ttlMs);
 }
 
 function getPrefixCachedResults(
@@ -563,7 +568,11 @@ export async function searchTitlesCached(
   }
   const results = await searchTitles(query, type);
   setCachedEntry(key, results);
-  await setSharedCachedEntry(key, results);
+  await setSharedCachedEntry(
+    key,
+    results,
+    options?.allowPrefix ? SUGGEST_CACHE_TTL_MS : CACHE_TTL_MS
+  );
   return { results, source: "tmdb" as const };
 }
 
@@ -574,7 +583,7 @@ export function cacheSearchResults(
 ) {
   const key = normalizeQueryKey(query, type);
   setCachedEntry(key, results);
-  void setSharedCachedEntry(key, results);
+  void setSharedCachedEntry(key, results, CACHE_TTL_MS);
 }
 
 export async function fetchTitleById(
