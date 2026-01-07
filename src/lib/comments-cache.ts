@@ -1,4 +1,4 @@
-type CommentPayload = {
+export type CommentPayload = {
   id: string;
   body: string;
   createdAt: string;

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { apiJson } from "@/lib/api-client";
 import { getCachedComments, setCachedComments } from "@/lib/comments-cache";
+import type { CommentPayload } from "@/lib/comments-cache";
 import { commentsResponseSchema } from "@/lib/comment-schemas";
 
 export function CommentPrefetch({ entryId }: { entryId: string }) {
@@ -26,14 +27,12 @@ export function CommentPrefetch({ entryId }: { entryId: string }) {
         observer.disconnect();
         void (async () => {
           try {
-            const { data } = await apiJson<{ comments: unknown[] }>(
+            const { data } = await apiJson<{ comments: CommentPayload[] }>(
               `/api/watchlist/${entryId}/comments`,
               { cache: "no-store", retries: 1 },
               commentsResponseSchema
             );
-            if (Array.isArray(data.comments)) {
-              setCachedComments(entryId, data.comments);
-            }
+            setCachedComments(entryId, data.comments);
           } catch {
             // Best-effort prefetch only.
           }
