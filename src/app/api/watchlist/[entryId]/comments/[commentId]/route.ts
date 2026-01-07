@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonResponse } from "@/lib/api-response";
 import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+import { redisDelete } from "@/lib/redis-client";
 
 const bodySchema = z.object({
   body: z.string().trim().min(1, "Comment cannot be empty").max(500, "Keep comments under 500 characters"),
@@ -103,6 +104,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     },
   });
 
+  await redisDelete(`entry-comments:${entryId}`);
   return jsonResponse({ comment: updated });
 }
 
@@ -134,5 +136,6 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   }
 
   await prisma.watchEntryComment.delete({ where: { id: commentId } });
+  await redisDelete(`entry-comments:${entryId}`);
   return jsonResponse({ ok: true });
 }

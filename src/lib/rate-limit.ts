@@ -1,5 +1,9 @@
-import { Redis as UpstashRedis } from "@upstash/redis";
-import IORedis from "ioredis";
+import {
+  ensureRedisConnected,
+  getRedisClient,
+  markRedisFailure,
+  type RedisClient,
+} from "@/lib/redis-client";
 
 type RateLimitConfig = {
   max: number;
@@ -11,14 +15,6 @@ type RateLimitEntry = {
   count: number;
   resetAt: number;
 };
-
-type RedisClient =
-  | { kind: "upstash"; client: UpstashRedis }
-  | { kind: "ioredis"; client: IORedis };
-
-let redisClient: RedisClient | null = null;
-let redisUnavailableUntil: number | null = null;
-const REDIS_BACKOFF_MS = 30_000;
 
 function getStore() {
   const globalStore = globalThis as typeof globalThis & {
@@ -37,67 +33,12 @@ export function getRateLimitKey(request: Request, userId?: string | null) {
   return `ip:${ip ?? "unknown"}`;
 }
 
-function debugLog(message: string, meta?: Record<string, unknown>) {
-  if (process.env.RATE_LIMIT_DEBUG !== "1") return;
-  if (meta) {
-    console.log(`[rate-limit] ${message}`, meta);
-  } else {
-    console.log(`[rate-limit] ${message}`);
-  }
-}
-
-function getRedisClient(): RedisClient | null {
-  if (redisUnavailableUntil && Date.now() < redisUnavailableUntil) {
-    debugLog("redis unavailable, using in-memory");
-    return null;
-  }
-  if (redisClient) return redisClient;
-
-  const redisUrl =
-    process.env.REDIS_URL ?? process.env.UPSTASH_REDIS_REST_URL ?? null;
-  if (!redisUrl) {
-    debugLog("REDIS_URL not set, using in-memory");
-    return null;
-  }
-
-  if (redisUrl.startsWith("http")) {
-    const token =
-      process.env.REDIS_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN ?? null;
-    if (!token) {
-      debugLog("Upstash token missing, using in-memory");
-      return null;
-    }
-    redisClient = {
-      kind: "upstash",
-      client: new UpstashRedis({ url: redisUrl, token }),
-    };
-    debugLog("using upstash redis");
-    return redisClient;
-  }
-
-  if (redisUrl.startsWith("redis://") || redisUrl.startsWith("rediss://")) {
-    const client = new IORedis(redisUrl, {
-      lazyConnect: true,
-      maxRetriesPerRequest: 1,
-      enableOfflineQueue: false,
-    });
-    redisClient = { kind: "ioredis", client };
-    debugLog("using ioredis");
-    return redisClient;
-  }
-
-  debugLog("unsupported REDIS_URL scheme, using in-memory");
-  return null;
-}
-
 async function rateLimitWithRedis(
   redis: RedisClient,
   key: string,
   config: RateLimitConfig
 ) {
-  if (redis.kind === "ioredis" && redis.client.status !== "ready") {
-    await redis.client.connect();
-  }
+  await ensureRedisConnected(redis);
   const now = Date.now();
   const fullKey = config.keyPrefix ? `${config.keyPrefix}:${key}` : key;
   let count: number;
@@ -145,10 +86,7 @@ export async function rateLimit(key: string, config: RateLimitConfig) {
     try {
       return await rateLimitWithRedis(redis, key, config);
     } catch (error) {
-      redisUnavailableUntil = Date.now() + REDIS_BACKOFF_MS;
-      debugLog("redis error, backing off to in-memory", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      markRedisFailure(error, "rate-limit");
     }
   }
 

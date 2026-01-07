@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { jsonResponse } from "@/lib/api-response";
 import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+import { redisDelete, redisGetJson, redisSetJson } from "@/lib/redis-client";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +13,29 @@ const bodySchema = z.object({
   body: z.string().trim().min(1, "Comment cannot be empty").max(500, "Keep comments under 500 characters"),
 });
 
+const COMMENTS_CACHE_TTL_MS = 1000 * 60 * 3;
+
+type CommentPayload = {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: { id: string; name: string | null; image: string | null };
+};
+
+function getCommentsCacheKey(entryId: string) {
+  return `entry-comments:${entryId}`;
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
   const { entryId } = await params;
+  const cacheKey = getCommentsCacheKey(entryId);
+  const cached = await redisGetJson<CommentPayload[]>(cacheKey);
+  if (cached) {
+    return jsonResponse({ comments: cached }, { noStore: true });
+  }
 
   const comments = await prisma.watchEntryComment.findMany({
     where: { entryId },
@@ -29,7 +48,12 @@ export async function GET(
     },
   });
 
-  return jsonResponse({ comments }, { noStore: true });
+  const normalized = comments.map((comment) => ({
+    ...comment,
+    createdAt: comment.createdAt.toISOString(),
+  }));
+  await redisSetJson(cacheKey, normalized, COMMENTS_CACHE_TTL_MS);
+  return jsonResponse({ comments: normalized }, { noStore: true });
 }
 
 export async function POST(
@@ -113,5 +137,6 @@ export async function POST(
     },
   });
 
+  await redisDelete(getCommentsCacheKey(entryId));
   return jsonResponse({ comment: newComment }, { status: 201 });
 }
