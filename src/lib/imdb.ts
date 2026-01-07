@@ -1,3 +1,5 @@
+import { redisGetJson, redisSetJson } from "@/lib/redis-client";
+
 type TmdbSearchResult = {
   id: number;
   media_type?: "movie" | "tv" | "person";
@@ -89,13 +91,14 @@ type CacheEntry = {
   results: ImdbTitle[];
 };
 
-const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
+const CACHE_TTL_MS = 1000 * 60 * 60;
 const MAX_CACHE_KEYS = 200;
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-const SEARCH_DETAIL_LIMIT = 20;
+const SEARCH_DETAIL_LIMIT = 100;
 const GENRE_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 const DEFAULT_WATCH_REGION = "US";
+const REDIS_SEARCH_PREFIX = "imdb:search";
 
 function getSearchCache() {
   const globalCache = globalThis as typeof globalThis & {
@@ -130,6 +133,10 @@ function normalizeQueryKey(query: string, type?: "movie" | "series") {
   return `${normalized}::${type ?? "all"}`;
 }
 
+function getRedisSearchKey(key: string) {
+  return `${REDIS_SEARCH_PREFIX}:${key}`;
+}
+
 function getCachedEntry(key: string) {
   const cache = getSearchCache();
   const entry = cache.get(key);
@@ -152,6 +159,14 @@ function setCachedEntry(key: string, results: ImdbTitle[]) {
     }
   }
   cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, results });
+}
+
+async function getSharedCachedEntry(key: string) {
+  return redisGetJson<ImdbTitle[]>(getRedisSearchKey(key));
+}
+
+async function setSharedCachedEntry(key: string, results: ImdbTitle[]) {
+  await redisSetJson(getRedisSearchKey(key), results, CACHE_TTL_MS);
 }
 
 function getPrefixCachedResults(
@@ -238,9 +253,13 @@ function getRuntimeMinutes(value: number | null | undefined) {
 }
 
 function getEpisodeRuntimeMinutes(payload: TmdbTvResponse | TmdbSearchResult) {
-  if ("episode_run_time" in payload && Array.isArray(payload.episode_run_time)) {
+  if (
+    "episode_run_time" in payload &&
+    Array.isArray(payload.episode_run_time)
+  ) {
     const runtime = payload.episode_run_time.find(
-      (value) => typeof value === "number" && Number.isFinite(value) && value > 0
+      (value) =>
+        typeof value === "number" && Number.isFinite(value) && value > 0
     );
     return getRuntimeMinutes(runtime);
   }
@@ -266,7 +285,10 @@ function extractGenreFromPayload(payload: { genres?: TmdbGenre[] }) {
   return genre ?? undefined;
 }
 
-function getGenreFromIds(ids: number[] | undefined, map: Record<number, string>) {
+function getGenreFromIds(
+  ids: number[] | undefined,
+  map: Record<number, string>
+) {
   if (!ids?.length) {
     return undefined;
   }
@@ -350,7 +372,8 @@ function toSeriesTitle(
     posterUrl: buildPosterUrl(payload.poster_path),
     plot: payload.overview,
     genre: genreName ?? extractGenreFromPayload(payload as TmdbTvResponse),
-    inProduction: (payload as { in_production?: boolean }).in_production ?? false,
+    inProduction:
+      (payload as { in_production?: boolean }).in_production ?? false,
     runtimeMinutes: getEpisodeRuntimeMinutes(payload),
     seasonCount: getSeasonCount(payload),
   };
@@ -384,16 +407,15 @@ function toTrailerUrl(payload: TmdbVideoResponse) {
   const results = Array.isArray(payload.results) ? payload.results : [];
   const trailer = results.find(
     (video) =>
-      video &&
-      video.site === "YouTube" &&
-      video.type === "Trailer" &&
-      video.key
+      video && video.site === "YouTube" && video.type === "Trailer" && video.key
   );
   const fallback = results.find(
     (video) => video && video.site === "YouTube" && video.key
   );
   const selected = trailer ?? fallback;
-  return selected?.key ? `https://www.youtube.com/watch?v=${selected.key}` : undefined;
+  return selected?.key
+    ? `https://www.youtube.com/watch?v=${selected.key}`
+    : undefined;
 }
 
 async function getGenreMaps() {
@@ -426,7 +448,9 @@ async function getGenreMaps() {
   cache.movie = Object.fromEntries(
     movieGenres.map((genre) => [genre.id, genre.name])
   );
-  cache.tv = Object.fromEntries(tvGenres.map((genre) => [genre.id, genre.name]));
+  cache.tv = Object.fromEntries(
+    tvGenres.map((genre) => [genre.id, genre.name])
+  );
   cache.expiresAt = Date.now() + GENRE_CACHE_TTL_MS;
   return cache;
 }
@@ -526,6 +550,11 @@ export async function searchTitlesCached(
   if (cached) {
     return { results: cached.results, source: "cache" as const };
   }
+  const shared = await getSharedCachedEntry(key);
+  if (shared) {
+    setCachedEntry(key, shared);
+    return { results: shared, source: "cache" as const };
+  }
   if (options?.allowPrefix) {
     const prefixHits = getPrefixCachedResults(query, type);
     if (prefixHits) {
@@ -534,6 +563,7 @@ export async function searchTitlesCached(
   }
   const results = await searchTitles(query, type);
   setCachedEntry(key, results);
+  await setSharedCachedEntry(key, results);
   return { results, source: "tmdb" as const };
 }
 
@@ -544,6 +574,7 @@ export function cacheSearchResults(
 ) {
   const key = normalizeQueryKey(query, type);
   setCachedEntry(key, results);
+  void setSharedCachedEntry(key, results);
 }
 
 export async function fetchTitleById(
