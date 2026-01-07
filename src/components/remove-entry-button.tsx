@@ -44,11 +44,6 @@ export function RemoveEntryButton({
       document.body.appendChild(target);
     }
     setPortalTarget(target);
-    return () => {
-      if (target && target.childNodes.length === 0) {
-        target.remove();
-      }
-    };
   }, []);
 
   const handleRemove = () => {
