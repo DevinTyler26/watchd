@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
+import { groupMembersResponseSchema } from "@/lib/group-schemas";
 
 type GroupSummary = {
   id: string;
@@ -75,27 +78,37 @@ export function GroupManagerPanel({
       );
 
       try {
-        const response = await fetch("/api/groups/join", {
+        const { data } = await apiJson<{ group?: { name?: string; shareCode?: string } }>(
+          "/api/groups/join",
+          {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: trimmed }),
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          setStatusMessage(payload.error ?? "Unable to join group.");
-          return;
-        }
+          retries: 1,
+          }
+        );
 
         setJoinToken("");
         setStatusMessage(null);
-        if (payload?.group?.name && payload?.group?.shareCode) {
+        if (data?.group?.name && data?.group?.shareCode) {
           setJoinSuccess({
-            name: payload.group.name,
-            shareCode: payload.group.shareCode,
+            name: data.group.name,
+            shareCode: data.group.shareCode,
           });
         }
         router.refresh();
-      } catch {
+      } catch (err) {
+        if (err instanceof ApiError && err.requestId) {
+          void reportClientError({
+            message: err.message,
+            requestId: err.requestId,
+            context: { action: "join-group" },
+          });
+        }
+        if (err instanceof ApiError) {
+          setStatusMessage(err.message);
+          return;
+        }
         setStatusMessage("Network issue joining the group.");
       } finally {
         if (options?.fromLink) {
@@ -125,27 +138,34 @@ export function GroupManagerPanel({
     setMembersLoading(true);
     setMembersError(null);
 
-    fetch(`/api/groups/${activeGroupId}/members`)
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Unable to load members.");
-        }
+    void (async () => {
+      try {
+        const { data } = await apiJson<{ members: MemberEntry[] }>(
+          `/api/groups/${activeGroupId}/members`,
+          { retries: 2 },
+          groupMembersResponseSchema
+        );
         if (!cancelled) {
-          setMembers(payload.members ?? []);
+          setMembers(data.members ?? []);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
+        if (error instanceof ApiError && error.requestId) {
+          void reportClientError({
+            message: error.message,
+            requestId: error.requestId,
+            context: { action: "load-members", groupId: activeGroupId },
+          });
+        }
         if (!cancelled) {
           setMembersError(
             error instanceof Error ? error.message : "Unable to load members."
           );
           setMembers([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setMembersLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -161,21 +181,31 @@ export function GroupManagerPanel({
     }
 
     try {
-      const response = await fetch("/api/groups", {
+      const { data } = await apiJson<{ group: { name: string } }>(
+        "/api/groups",
+        {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: createName.trim() }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        setStatusMessage(payload.error ?? "Unable to create group.");
-        return;
-      }
+        retries: 1,
+        }
+      );
 
       setCreateName("");
-      setStatusMessage(`Created ${payload.group.name}.`);
+      setStatusMessage(`Created ${data.group.name}.`);
       router.refresh();
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "create-group" },
+        });
+      }
+      if (err instanceof ApiError) {
+        setStatusMessage(err.message);
+        return;
+      }
       setStatusMessage("Network issue creating the group.");
     }
   }
@@ -196,25 +226,35 @@ export function GroupManagerPanel({
 
     setIsInviting(true);
     try {
-      const response = await fetch(`/api/groups/${activeGroupId}/invite`, {
+      const { data } = await apiJson<{ emailSent: boolean; token?: string }>(
+        `/api/groups/${activeGroupId}/invite`,
+        {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail, role: inviteRole }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        setStatusMessage(payload.error ?? "Unable to send invite.");
-        return;
-      }
+        retries: 1,
+        }
+      );
 
       setInviteEmail("");
       setInviteRole("EDITOR");
-      if (payload.emailSent) {
+      if (data.emailSent) {
         setStatusMessage(`Invite sent to ${normalizedEmail}.`);
       } else {
-        setStatusMessage(`Invite ready. Share token: ${payload.token}`);
+        setStatusMessage(`Invite ready. Share token: ${data.token}`);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "invite-member", groupId: activeGroupId },
+        });
+      }
+      if (err instanceof ApiError) {
+        setStatusMessage(err.message);
+        return;
+      }
       setStatusMessage("Network issue sending the invite.");
     } finally {
       setIsInviting(false);
@@ -236,16 +276,10 @@ export function GroupManagerPanel({
     setIsLeaving(true);
 
     try {
-      const response = await fetch(`/api/groups/${confirmLeave.id}/leave`, {
+      await apiJson(`/api/groups/${confirmLeave.id}/leave`, {
         method: "POST",
+        retries: 1,
       });
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setStatusMessage(payload.error ?? "Unable to leave group.");
-        setIsLeaving(false);
-        return;
-      }
 
       setStatusMessage(`Left ${confirmLeave.name}.`);
       const leftGroupId = confirmLeave.id;
@@ -254,7 +288,18 @@ export function GroupManagerPanel({
         void router.push("/");
       }
       router.refresh();
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "leave-group", groupId: confirmLeave.id },
+        });
+      }
+      if (err instanceof ApiError) {
+        setStatusMessage(err.message);
+        return;
+      }
       setStatusMessage("Network issue leaving the group.");
     } finally {
       setIsLeaving(false);
@@ -266,24 +311,34 @@ export function GroupManagerPanel({
     setStatusMessage(null);
     setRoleUpdatingId(userId);
     try {
-      const response = await fetch(`/api/groups/${activeGroupId}/members`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        setStatusMessage(payload.error ?? "Unable to update role.");
-        return;
-      }
+      const { data } = await apiJson<{ member?: MemberEntry }>(
+        `/api/groups/${activeGroupId}/members`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+          retries: 1,
+        }
+      );
       setMembers((prev) =>
         prev.map((member) =>
           member.userId === userId
-            ? { ...member, role: payload.member?.role ?? role }
+            ? { ...member, role: data.member?.role ?? role }
             : member
         )
       );
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "update-role", groupId: activeGroupId, userId },
+        });
+      }
+      if (err instanceof ApiError) {
+        setStatusMessage(err.message);
+        return;
+      }
       setStatusMessage("Network issue updating role.");
     } finally {
       setRoleUpdatingId(null);
@@ -303,18 +358,25 @@ export function GroupManagerPanel({
     setStatusMessage(null);
     setRemovingId(userId);
     try {
-      const response = await fetch(`/api/groups/${activeGroupId}/members`, {
+      await apiJson(`/api/groups/${activeGroupId}/members`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
+        retries: 1,
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setStatusMessage(payload.error ?? "Unable to remove member.");
+      setMembers((prev) => prev.filter((member) => member.userId !== userId));
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "remove-member", groupId: activeGroupId, userId },
+        });
+      }
+      if (err instanceof ApiError) {
+        setStatusMessage(err.message);
         return;
       }
-      setMembers((prev) => prev.filter((member) => member.userId !== userId));
-    } catch {
       setStatusMessage("Network issue removing member.");
     } finally {
       setRemovingId(null);

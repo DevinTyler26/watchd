@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +29,7 @@ export async function GET(
     },
   });
 
-  return NextResponse.json(
-    { comments },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  return jsonResponse({ comments }, { noStore: true });
 }
 
 export async function POST(
@@ -40,17 +39,29 @@ export async function POST(
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    return jsonResponse({ error: "Sign in required" }, { status: 401 });
   }
 
   const { entryId } = await params;
+  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "comments:create",
+    max: 12,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many comments. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
+  }
   const entry = await prisma.watchEntry.findUnique({
     where: { id: entryId },
     select: { id: true, userId: true, groupId: true },
   });
 
   if (!entry) {
-    return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+    return jsonResponse({ error: "Entry not found" }, { status: 404 });
   }
 
   // Enforce membership/ownership rules.
@@ -66,13 +77,13 @@ export async function POST(
     });
 
     if (!membership || membership.status !== "ACTIVE") {
-      return NextResponse.json(
+      return jsonResponse(
         { error: "You are not part of this circle." },
         { status: 403 }
       );
     }
   } else if (entry.userId !== session.user.id) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: "Only the owner can comment on personal entries." },
       { status: 403 }
     );
@@ -82,7 +93,7 @@ export async function POST(
   const parsed = bodySchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
       { status: 400 }
     );
@@ -102,5 +113,5 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({ comment: newComment }, { status: 201 });
+  return jsonResponse({ comment: newComment }, { status: 201 });
 }

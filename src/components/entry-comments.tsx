@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { FormEvent, useEffect, useState } from "react";
 
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
+import { commentsResponseSchema } from "@/lib/comment-schemas";
 import { relativeTimeFromNow } from "@/lib/time";
 
 type CommentUser = {
@@ -63,17 +66,15 @@ export function EntryComments({
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/watchlist/${entryId}/comments`, {
-          cache: "no-store",
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error ?? "Unable to load comments");
-        }
+        const { data } = await apiJson<{ comments: Comment[] }>(
+          `/api/watchlist/${entryId}/comments`,
+          { cache: "no-store", retries: 2 },
+          commentsResponseSchema
+        );
         if (!cancelled) {
           setComments(
-            Array.isArray(payload.comments)
-              ? payload.comments.map((comment: Comment) => ({
+            Array.isArray(data.comments)
+              ? data.comments.map((comment: Comment) => ({
                   ...comment,
                   createdAt: comment.createdAt,
                 }))
@@ -81,6 +82,13 @@ export function EntryComments({
           );
         }
       } catch (err) {
+        if (err instanceof ApiError && err.requestId) {
+          void reportClientError({
+            message: err.message,
+            requestId: err.requestId,
+            context: { entryId, action: "load-comments" },
+          });
+        }
         if (!cancelled) {
           setError(
             err instanceof Error ? err.message : "Unable to load comments"
@@ -126,21 +134,28 @@ export function EntryComments({
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/watchlist/${entryId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft.trim() }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to add comment");
-      }
-      if (payload.comment) {
-        setComments((prev) => [...prev, payload.comment]);
+      const { data } = await apiJson<{ comment?: Comment }>(
+        `/api/watchlist/${entryId}/comments`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: draft.trim() }),
+          retries: 1,
+        }
+      );
+      if (data.comment) {
+        setComments((prev) => [...prev, data.comment as Comment]);
         setDraft("");
         setShowForm(true);
       }
     } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { entryId, action: "add-comment" },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to add comment");
     } finally {
       setSubmitting(false);
@@ -169,26 +184,39 @@ export function EntryComments({
     if (!editDraft.trim() || editSubmitting) return;
     setEditSubmitting(true);
     setError(null);
+    const previous = comments;
+    setComments((prev) =>
+      prev.map((comment) =>
+        comment.id === commentId
+          ? { ...comment, body: editDraft.trim() }
+          : comment
+      )
+    );
     try {
-      const response = await fetch(
+      const { data } = await apiJson<{ comment?: Comment }>(
         `/api/watchlist/${entryId}/comments/${commentId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ body: editDraft.trim() }),
+          retries: 1,
         }
       );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to update comment");
-      }
-      if (payload.comment) {
+      if (data.comment) {
         setComments((prev) =>
-          prev.map((c) => (c.id === commentId ? payload.comment : c))
+          prev.map((c) => (c.id === commentId ? (data.comment as Comment) : c))
         );
-        cancelEdit();
       }
+      cancelEdit();
     } catch (err) {
+      setComments(previous);
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { entryId, action: "edit-comment", commentId },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to update comment");
     } finally {
       setEditSubmitting(false);
@@ -199,22 +227,25 @@ export function EntryComments({
     if (deletingId) return;
     setDeletingId(commentId);
     setError(null);
+    const previous = comments;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
     try {
-      const response = await fetch(
-        `/api/watchlist/${entryId}/comments/${commentId}`,
-        {
-          method: "DELETE",
-        }
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to delete comment");
-      }
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      await apiJson(`/api/watchlist/${entryId}/comments/${commentId}`, {
+        method: "DELETE",
+        retries: 1,
+      });
       if (editingId === commentId) {
         cancelEdit();
       }
     } catch (err) {
+      setComments(previous);
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { entryId, action: "delete-comment", commentId },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to delete comment");
     } finally {
       setDeletingId(null);

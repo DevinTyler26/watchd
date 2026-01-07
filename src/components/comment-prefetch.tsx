@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { apiJson } from "@/lib/api-client";
 import { getCachedComments, setCachedComments } from "@/lib/comments-cache";
+import { commentsResponseSchema } from "@/lib/comment-schemas";
 
 export function CommentPrefetch({ entryId }: { entryId: string }) {
   const ref = useRef<HTMLSpanElement | null>(null);
@@ -24,16 +26,13 @@ export function CommentPrefetch({ entryId }: { entryId: string }) {
         observer.disconnect();
         void (async () => {
           try {
-            const response = await fetch(
+            const { data } = await apiJson<{ comments: unknown[] }>(
               `/api/watchlist/${entryId}/comments`,
-              { cache: "no-store" }
+              { cache: "no-store", retries: 1 },
+              commentsResponseSchema
             );
-            const payload = await response.json();
-            if (!response.ok) {
-              return;
-            }
-            if (Array.isArray(payload.comments)) {
-              setCachedComments(entryId, payload.comments);
+            if (Array.isArray(data.comments)) {
+              setCachedComments(entryId, data.comments);
             }
           } catch {
             // Best-effort prefetch only.

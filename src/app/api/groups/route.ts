@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { jsonResponse } from "@/lib/api-response";
+import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 const createGroupSchema = z.object({
   name: z.string().min(2, "Name is required").max(60),
@@ -18,7 +21,7 @@ export async function GET() {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ groups: [] });
+    return jsonResponse({ groups: [] }, { noStore: true });
   }
 
   const memberships = await prisma.groupMembership.findMany({
@@ -35,23 +38,35 @@ export async function GET() {
     role: membership.role,
   }));
 
-  return NextResponse.json({ groups });
+  return jsonResponse({ groups }, { noStore: true });
 }
 
 export async function POST(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return jsonResponse({ error: "Sign in required." }, { status: 401 });
+  }
+  const limiter = rateLimit(getRateLimitKey(request, session.user.id), {
+    keyPrefix: "groups:create",
+    max: 6,
+    intervalMs: 60_000,
+  });
+  if (limiter.limited) {
+    const retryAfter = Math.ceil((limiter.resetAt - Date.now()) / 1000);
+    return jsonResponse(
+      { error: "Too many requests. Try again soon." },
+      { status: 429, headers: { "Retry-After": retryAfter.toString() } }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const parsed = createGroupSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json(
+    return jsonResponse(
       { error: parsed.error.flatten().formErrors.join(", ") },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -82,7 +97,7 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({
+  return jsonResponse({
     group: {
       id: group.id,
       name: group.name,

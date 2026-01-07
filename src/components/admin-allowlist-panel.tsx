@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type AllowEntry = {
   email: string;
@@ -19,13 +21,19 @@ export function AdminAllowlistPanel() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/allowlist");
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to load allowlist");
-      }
-      setEntries(payload.allowlist ?? []);
+      const { data } = await apiJson<{ allowlist: AllowEntry[] }>(
+        "/api/admin/allowlist",
+        { retries: 2 }
+      );
+      setEntries(data.allowlist ?? []);
     } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "load-allowlist" },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to load allowlist");
     } finally {
       setLoading(false);
@@ -42,18 +50,22 @@ export function AdminAllowlistPanel() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/allowlist", {
+      await apiJson("/api/admin/allowlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: value }),
+        retries: 1,
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to add email");
-      }
       setEmail("");
       await load();
     } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "add-allowlist" },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to add email");
     } finally {
       setBusy(false);
@@ -64,17 +76,21 @@ export function AdminAllowlistPanel() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/allowlist", {
+      await apiJson("/api/admin/allowlist", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: target }),
+        retries: 1,
       });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to remove email");
-      }
       await load();
     } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "remove-allowlist" },
+        });
+      }
       setError(err instanceof Error ? err.message : "Unable to remove email");
     } finally {
       setBusy(false);

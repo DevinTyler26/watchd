@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
-
 import { prisma } from "@/lib/prisma";
 import { sendWeeklySummaryEmail } from "@/lib/email";
+import { jsonResponse } from "@/lib/api-response";
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
     : null;
 
   if (!secret || (headerSecret !== secret && bearerSecret !== secret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
   }
 
   const since = new Date(Date.now() - ONE_WEEK_MS);
@@ -108,5 +107,5 @@ export async function POST(request: Request) {
 
   await Promise.all(sends);
 
-  return NextResponse.json({ success: true, processedGroups: groupIds.length });
+  return jsonResponse({ success: true, processedGroups: groupIds.length });
 }

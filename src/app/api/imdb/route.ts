@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { searchTitlesCached } from "@/lib/imdb";
+import { jsonResponse } from "@/lib/api-response";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,9 +8,9 @@ export async function GET(request: Request) {
   const normalizedType = typeParam === "movie" || typeParam === "series" ? typeParam : undefined;
 
   if (!query || query.trim().length < 2) {
-    return NextResponse.json(
+    return jsonResponse(
       { results: [], error: "Search query must be at least two characters." },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -19,8 +19,11 @@ export async function GET(request: Request) {
       query.trim(),
       normalizedType,
     );
-    return NextResponse.json({ results, source });
+    return jsonResponse({ results, source });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return jsonResponse(
+      { error: (error as Error).message },
+      { status: 500 }
+    );
   }
 }

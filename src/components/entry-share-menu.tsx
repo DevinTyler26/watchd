@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { apiJson, ApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type ShareGroup = {
   id: string | null;
@@ -57,7 +59,7 @@ export function EntryShareMenu({
     setMessage(null);
     setMessageTone(null);
     try {
-      const response = await fetch("/api/watchlist", {
+      await apiJson("/api/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -66,11 +68,8 @@ export function EntryShareMenu({
           note: note ?? undefined,
           groupId,
         }),
+        retries: 1,
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to share that entry.");
-      }
 
       const groupName = orderedGroups.find(
         (group) => group.id === groupId
@@ -82,6 +81,13 @@ export function EntryShareMenu({
       setSelection("");
       router.refresh();
     } catch (error) {
+      if (error instanceof ApiError && error.requestId) {
+        void reportClientError({
+          message: error.message,
+          requestId: error.requestId,
+          context: { imdbId, groupId, action: "share-entry" },
+        });
+      }
       const message =
         error instanceof Error ? error.message : "Unable to share right now.";
       setMessage(message);

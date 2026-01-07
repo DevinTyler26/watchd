@@ -3,6 +3,12 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  apiJson,
+  ApiError,
+  OfflineQueuedError,
+} from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type ShareTarget = {
   id: string | null;
@@ -131,17 +137,21 @@ export function SearchAndShare({
         params.set("type", filter);
       }
 
-      const response = await fetch(`/api/imdb?${params.toString()}`);
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to reach TMDB right now.");
-      }
-
+      const { data } = await apiJson<{ results: SearchResult[] }>(
+        `/api/imdb?${params.toString()}`,
+        { retries: 1 }
+      );
       setResults(
-        Array.isArray(payload.results) ? payload.results.slice(0, 8) : []
+        Array.isArray(data.results) ? data.results.slice(0, 8) : []
       );
     } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "search-imdb" },
+        });
+      }
       setResults([]);
       setError(
         err instanceof Error ? err.message : "Something unexpected happened."
@@ -168,54 +178,64 @@ export function SearchAndShare({
     const likedSelection = likedById[result.imdbId];
 
     try {
-      const response = await fetch("/api/watchlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imdbId: result.imdbId,
-          type: result.type,
-          groupId: target.id ?? undefined,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Could not save entry.");
-      }
-      const entryId = payload?.entry?.id as string | undefined;
+      const { data } = await apiJson<{ entry?: { id?: string } }>(
+        "/api/watchlist",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imdbId: result.imdbId,
+            type: result.type,
+            groupId: target.id ?? undefined,
+          }),
+          retries: 1,
+          queueOnOffline: true,
+          requestLabel: "Share entry",
+        }
+      );
+      const entryId = data?.entry?.id as string | undefined;
       if (entryId) {
         if (likedSelection !== undefined) {
-          const reactionResponse = await fetch(
-            `/api/watchlist/${entryId}/reaction`,
-            {
+          try {
+            await apiJson(`/api/watchlist/${entryId}/reaction`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 reaction: likedSelection ? "LIKE" : "DISLIKE",
               }),
+              retries: 1,
+            });
+          } catch (err) {
+            if (err instanceof ApiError && err.requestId) {
+              void reportClientError({
+                message: err.message,
+                requestId: err.requestId,
+                context: { action: "share-reaction", entryId },
+              });
             }
-          );
-          if (!reactionResponse.ok) {
-            // Best-effort: entry saved, ignore reaction failure.
-            await reactionResponse.json().catch(() => ({}));
           }
         }
         const comment = notes[result.imdbId]?.trim();
         if (comment) {
-          const commentResponse = await fetch(
-            `/api/watchlist/${entryId}/comments`,
-            {
+          try {
+            await apiJson(`/api/watchlist/${entryId}/comments`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ body: comment }),
+              retries: 1,
+            });
+          } catch (err) {
+            if (err instanceof ApiError && err.requestId) {
+              void reportClientError({
+                message: err.message,
+                requestId: err.requestId,
+                context: { action: "share-comment", entryId },
+              });
             }
-          );
-          if (!commentResponse.ok) {
-            const commentPayload = await commentResponse
-              .json()
-              .catch(() => ({}));
             throw new Error(
-              commentPayload?.error ??
-                "Entry saved, but comment failed to post."
+              err instanceof Error
+                ? err.message
+                : "Entry saved, but comment failed to post."
             );
           }
         }
@@ -240,6 +260,26 @@ export function SearchAndShare({
       });
       router.refresh();
     } catch (err) {
+      if (err instanceof OfflineQueuedError) {
+        setActionState({
+          id: result.imdbId,
+          status: "success",
+          message: `${result.title} queued to share.`,
+        });
+        setBlockedIds((prev) => {
+          const next = new Set(prev);
+          next.add(result.imdbId);
+          return next;
+        });
+        return;
+      }
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "share-entry", imdbId: result.imdbId },
+        });
+      }
       setActionState({
         id: result.imdbId,
         status: "error",
@@ -281,18 +321,12 @@ export function SearchAndShare({
         if (filter !== "all") {
           params.set("type", filter);
         }
-        const response = await fetch(`/api/imdb/suggest?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          setSuggestions([]);
-          setShowSuggestions(false);
-          setIsSuggesting(false);
-          return;
-        }
+        const { data } = await apiJson<{ suggestions: Suggestion[] }>(
+          `/api/imdb/suggest?${params.toString()}`,
+          { signal: controller.signal, retries: 1 }
+        );
         setSuggestions(
-          Array.isArray(payload.suggestions) ? payload.suggestions : []
+          Array.isArray(data.suggestions) ? data.suggestions : []
         );
         setShowSuggestions(true);
         setIsSuggesting(false);

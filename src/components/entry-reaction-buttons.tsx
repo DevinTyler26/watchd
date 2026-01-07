@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { apiJson, ApiError, OfflineQueuedError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-errors";
 
 type ReactionType = "LIKE" | "DISLIKE";
 
@@ -55,17 +57,24 @@ export function EntryReactionButtons({
     delta: ReactionDelta
   ) => {
     const reactionEndpoint = `/api/watchlist/${entryId}/reaction`;
-    const response = await fetch(reactionEndpoint, {
-      method: nextReaction ? "POST" : "DELETE",
-      headers: nextReaction
-        ? { "Content-Type": "application/json" }
-        : undefined,
-      body: nextReaction
-        ? JSON.stringify({ reaction: nextReaction })
-        : undefined,
-    });
-
-    if (!response.ok) {
+    try {
+      await apiJson(reactionEndpoint, {
+        method: nextReaction ? "POST" : "DELETE",
+        headers: nextReaction
+          ? { "Content-Type": "application/json" }
+          : undefined,
+        body: nextReaction
+          ? JSON.stringify({ reaction: nextReaction })
+          : undefined,
+        retries: 1,
+        queueOnOffline: true,
+        requestLabel: "Reaction update",
+      });
+      router.refresh();
+    } catch (err) {
+      if (err instanceof OfflineQueuedError) {
+        return;
+      }
       setReaction(previousReaction);
       if (delta.likeDelta !== 0) {
         setLikeCount((prev) => Math.max(0, prev - delta.likeDelta));
@@ -73,14 +82,15 @@ export function EntryReactionButtons({
       if (delta.dislikeDelta !== 0) {
         setDislikeCount((prev) => Math.max(0, prev - delta.dislikeDelta));
       }
-      const payload = await response.json().catch(() => ({}));
-      if (payload?.error) {
-        alert(payload.error);
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { entryId, action: "reaction" },
+        });
       }
-      return;
+      alert(err instanceof Error ? err.message : "Unable to update reaction.");
     }
-
-    router.refresh();
   };
 
   const handleSelect = (next: ReactionType) => {
