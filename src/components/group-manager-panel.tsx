@@ -453,7 +453,11 @@ export function GroupManagerPanel({
     }
   }
 
-  async function updateMemberRole(userId: string, role: MemberEntry["role"]) {
+  async function updateMemberRole(
+    userId: string,
+    role: MemberEntry["role"],
+    memberName?: string
+  ) {
     if (!activeGroupId) return;
     setStatusMessage(null);
     setRoleUpdatingId(userId);
@@ -474,6 +478,7 @@ export function GroupManagerPanel({
             : member
         )
       );
+      addToast(`${memberName ?? "Member"} role updated.`, "success");
     } catch (err) {
       if (err instanceof ApiError && err.requestId) {
         void reportClientError({
@@ -497,7 +502,7 @@ export function GroupManagerPanel({
       setPendingOwnershipChange({ userId: member.userId, name: member.name });
       return;
     }
-    void updateMemberRole(member.userId, role);
+    void updateMemberRole(member.userId, role, member.name);
   }
 
   async function removeMember(userId: string) {
@@ -548,7 +553,7 @@ export function GroupManagerPanel({
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40 md:max-w-lg md:p-8">
+          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40 md:max-w-lg md:p-8">
             <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
               Circle created
             </p>
@@ -562,7 +567,7 @@ export function GroupManagerPanel({
               <button
                 type="button"
                 onClick={() => setCreatedGroupModal(null)}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Stay here
               </button>
@@ -573,7 +578,7 @@ export function GroupManagerPanel({
                   setCreatedGroupModal(null);
                   void router.push(`/circles?group=${targetCode}`);
                 }}
-                className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 Manage this circle
               </button>
@@ -584,7 +589,7 @@ export function GroupManagerPanel({
                   setCreatedGroupModal(null);
                   void router.push(`/?group=${targetCode}`);
                 }}
-                className="flex-1 rounded-2xl border border-emerald-400/50 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg border border-emerald-400/50 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 View feed
               </button>
@@ -601,7 +606,7 @@ export function GroupManagerPanel({
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
               Danger zone
             </p>
@@ -616,7 +621,7 @@ export function GroupManagerPanel({
               <button
                 type="button"
                 onClick={() => setDeleteGroupModal(null)}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isDeletingGroup}
               >
                 Cancel
@@ -624,7 +629,7 @@ export function GroupManagerPanel({
               <button
                 type="button"
                 onClick={() => void confirmDeleteGroup()}
-                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={isDeletingGroup}
               >
                 {isDeletingGroup ? "Deleting..." : "Delete circle"}
@@ -642,7 +647,7 @@ export function GroupManagerPanel({
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-amber-300">
               Invite pending
             </p>
@@ -656,7 +661,7 @@ export function GroupManagerPanel({
               <button
                 type="button"
                 onClick={() => setPendingInviteModal(null)}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isInviting}
               >
                 Keep existing
@@ -668,7 +673,7 @@ export function GroupManagerPanel({
                   setPendingInviteModal(null);
                   void resendInvite(email);
                 }}
-                className="flex-1 rounded-2xl bg-amber-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg bg-amber-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={isInviting}
               >
                 {isInviting ? "Resending..." : "Resend invite"}
@@ -680,13 +685,13 @@ export function GroupManagerPanel({
       <p className="text-sm text-white/60">{summaryText}</p>
 
       {statusMessage ? (
-        <p className="rounded-2xl border border-white/10 bg-night/30 p-3 text-center text-sm text-white/80">
+        <p className="rounded-lg border border-white/10 bg-night/30 p-3 text-center text-sm text-white/80">
           {statusMessage}
         </p>
       ) : null}
 
       {activeGroup ? (
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-night/30 p-4">
+        <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -708,7 +713,7 @@ export function GroupManagerPanel({
                       setIsEditingName(false);
                     }
                   }}
-                  className="w-full rounded-xl border border-white/15 bg-transparent px-2 py-1.5 text-xl font-semibold text-white focus:border-brand focus:outline-none"
+                  className="w-full rounded-lg border border-white/15 bg-transparent px-2 py-1.5 text-xl font-semibold text-white focus:border-brand focus:outline-none"
                   disabled={isRenaming}
                   autoFocus
                 />
@@ -731,7 +736,7 @@ export function GroupManagerPanel({
               </p>
             </div>
             {isManager ? (
-              <div className="w-full max-w-sm space-y-3">
+              <div className="w-full space-y-3 md:max-w-sm">
                 <form onSubmit={handleInvite} className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-white/50">
                     Invite with role
@@ -741,38 +746,40 @@ export function GroupManagerPanel({
                     value={inviteEmail}
                     onChange={(event) => setInviteEmail(event.target.value)}
                     placeholder="friend@example.com"
-                    className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                    className="w-full rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
                   />
-                  <select
-                    value={inviteRole}
-                    onChange={(event) =>
-                      setInviteRole(event.target.value as MemberEntry["role"])
-                    }
-                    className="w-full rounded-2xl border border-white/10 bg-night/60 pl-4 pr-10 py-2 text-sm text-white focus:border-brand focus:outline-none"
-                  >
-                    <option value="EDITOR">Editor</option>
-                    <option value="VIEWER">Viewer</option>
-                    <option value="OWNER" disabled={!isOwner}>
-                      Owner (owners only)
-                    </option>
-                  </select>
-                  <button
-                    type="submit"
-                    disabled={isInviting}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isInviting ? (
-                      <>
-                        <span
-                          className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
-                          aria-hidden
-                        />
-                        Sending...
-                      </>
-                    ) : (
-                      "Send invite"
-                    )}
-                  </button>
+                  <div className="flex items-stretch gap-2">
+                    <select
+                      value={inviteRole}
+                      onChange={(event) =>
+                        setInviteRole(event.target.value as MemberEntry["role"])
+                      }
+                      className="h-10 flex-1 rounded-lg border border-white/10 bg-night/60 pl-4 pr-10 text-sm text-white focus:border-brand focus:outline-none"
+                    >
+                      <option value="EDITOR">Editor</option>
+                      <option value="VIEWER">Viewer</option>
+                      <option value="OWNER" disabled={!isOwner}>
+                        Owner (owners only)
+                      </option>
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={isInviting}
+                      className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-semibold uppercase tracking-widest text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isInviting ? (
+                        <>
+                          <span
+                            className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                            aria-hidden
+                          />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send invite"
+                      )}
+                    </button>
+                  </div>
                   <p className="text-xs text-white/50">
                     Owners can transfer ownership; Editors can invite and manage
                     roles. Viewers can only view and react.
@@ -786,7 +793,7 @@ export function GroupManagerPanel({
             )}
           </div>
 
-          <div className="space-y-2 rounded-2xl border border-white/10 bg-night/20 p-4">
+          <div className="space-y-3 border-t border-white/10 pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -809,7 +816,7 @@ export function GroupManagerPanel({
               </div>
             </div>
             {membersError ? (
-              <p className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+              <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
                 {membersError}
               </p>
             ) : null}
@@ -826,29 +833,24 @@ export function GroupManagerPanel({
                   return (
                     <li
                       key={member.userId}
-                      className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-night/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 rounded-md bg-white/5 px-3 py-3"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {member.name}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          {member.email ?? "No email"}
-                        </p>
-                      </div>
-                      {canManageMember ? (
-                        isOwnerMember ? (
-                          <div className="space-y-1 text-right sm:ml-auto sm:text-right">
-                            <span className="inline-flex rounded-2xl border border-white/20 bg-night/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
-                              Owner
-                            </span>
-                            <p className="text-[11px] text-white/40">
-                              Promote someone else to transfer ownership.
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white">
+                            {member.name}
+                          </p>
+                          <p className="text-xs text-white/50">
+                            {member.email ?? "No email"}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                          {canManageMember ? (
+                            isOwnerMember ? (
+                              <span className="inline-flex shrink-0 rounded-md border border-white/20 bg-night/60 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+                                Owner
+                              </span>
+                            ) : (
                               <select
                                 value={member.role}
                                 onChange={(event) =>
@@ -857,7 +859,7 @@ export function GroupManagerPanel({
                                     event.target.value as MemberEntry["role"]
                                   )
                                 }
-                                className="rounded-2xl border border-white/20 bg-night/60 pl-3 pr-10 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                                className="w-26 shrink-0 rounded-lg border border-white/20 bg-night/60 pl-2.5 pr-8 py-1.5 text-sm text-white focus:border-brand focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                                 disabled={
                                   roleUpdatingId === member.userId ||
                                   removingId === member.userId
@@ -869,11 +871,17 @@ export function GroupManagerPanel({
                                 <option value="EDITOR">Editor</option>
                                 <option value="VIEWER">Viewer</option>
                               </select>
-                            </div>
+                            )
+                          ) : (
+                            <span className="shrink-0 text-xs uppercase tracking-[0.3em] text-white/40">
+                              {member.role}
+                            </span>
+                          )}
+                          {canManageMember && !isOwnerMember ? (
                             <button
                               type="button"
                               onClick={() => removeMember(member.userId)}
-                              className="flex items-center gap-2 rounded-2xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="flex items-center gap-2 rounded-md border border-white/20 px-2.5 py-1.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                               disabled={removingId === member.userId}
                             >
                               {removingId === member.userId ? (
@@ -888,21 +896,23 @@ export function GroupManagerPanel({
                                 "Remove"
                               )}
                             </button>
-                          </div>
-                        )
-                      ) : (
-                        <span className="text-xs uppercase tracking-[0.3em] text-white/40">
-                          {member.role}
-                        </span>
-                      )}
+                          ) : null}
+                        </div>
+                      </div>
+                      {canManageMember && isOwnerMember ? (
+                        <p className="text-[11px] text-white/40">
+                          Promote someone else to transfer ownership.
+                        </p>
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
             )}
+            {isOwner ? <div className="border-b border-white/10" /> : null}
           </div>
           {isOwner ? (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4">
               <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
                 Danger
               </p>
@@ -918,7 +928,7 @@ export function GroupManagerPanel({
                     name: activeGroup.name,
                   })
                 }
-                className="mt-3 inline-flex items-center rounded-2xl border border-rose-500/50 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
+                className="mt-3 inline-flex items-center rounded-lg border border-rose-500/50 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
               >
                 Delete circle
               </button>
@@ -926,7 +936,7 @@ export function GroupManagerPanel({
           ) : null}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-night/30 p-4 text-sm text-white/60">
+        <div className="rounded-lg border border-white/10 bg-night/30 p-4 text-sm text-white/60">
           Select a circle above to manage members and invites.
         </div>
       )}
@@ -934,7 +944,7 @@ export function GroupManagerPanel({
       <div className="grid gap-6 lg:grid-cols-2">
         <form
           onSubmit={handleCreate}
-          className="space-y-2 rounded-2xl border border-white/10 bg-night/30 p-4"
+          className="space-y-2 rounded-lg border border-white/10 bg-night/30 p-4"
         >
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
             Start a circle
@@ -944,11 +954,11 @@ export function GroupManagerPanel({
             value={createName}
             onChange={(event) => setCreateName(event.target.value)}
             placeholder="e.g. Family Signal"
-            className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+            className="w-full rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
           />
           <button
             type="submit"
-            className="w-full rounded-2xl bg-brand px-4 py-2 text-sm font-semibold uppercase tracking-widest text-night"
+            className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-semibold uppercase tracking-widest text-night"
           >
             Create
           </button>
@@ -956,7 +966,7 @@ export function GroupManagerPanel({
 
         <form
           onSubmit={handleJoin}
-          className="space-y-2 rounded-2xl border border-white/10 bg-night/30 p-4"
+          className="space-y-2 rounded-lg border border-white/10 bg-night/30 p-4"
         >
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
             Join via token
@@ -966,18 +976,18 @@ export function GroupManagerPanel({
             value={joinToken}
             onChange={(event) => setJoinToken(event.target.value)}
             placeholder="Paste invite token"
-            className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+            className="w-full rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
           />
           <button
             type="submit"
-            className="w-full rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white"
+            className="w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-widest text-white"
           >
             Join circle
           </button>
         </form>
       </div>
 
-      <div className="space-y-4 rounded-2xl border border-white/10 bg-night/30 p-4">
+      <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -994,7 +1004,7 @@ export function GroupManagerPanel({
             {groups.map((group) => (
               <li
                 key={group.id}
-                className="flex items-center justify-between rounded-2xl border border-white/10 bg-night/40 px-4 py-3"
+                className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3"
               >
                 <div>
                   <p className="text-base font-semibold text-white">
@@ -1015,7 +1025,7 @@ export function GroupManagerPanel({
                       setStatusMessage(null);
                       setConfirmLeave(group);
                     }}
-                    className="rounded-2xl border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                    className="rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
                   >
                     Leave circle
                   </button>
@@ -1033,7 +1043,7 @@ export function GroupManagerPanel({
 
       {joinSuccess ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
               You&apos;re in
             </p>
@@ -1048,7 +1058,7 @@ export function GroupManagerPanel({
               <button
                 type="button"
                 onClick={() => setJoinSuccess(null)}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 Stay here
               </button>
@@ -1058,7 +1068,7 @@ export function GroupManagerPanel({
                   router.push(`/?group=${joinSuccess.shareCode}`);
                   setJoinSuccess(null);
                 }}
-                className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
+                className="flex-1 rounded-lg bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
               >
                 Go to feed
               </button>
@@ -1069,7 +1079,7 @@ export function GroupManagerPanel({
 
       {confirmLeave ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
               Leave circle
             </p>
@@ -1085,7 +1095,7 @@ export function GroupManagerPanel({
                 type="button"
                 onClick={() => setConfirmLeave(null)}
                 disabled={isLeaving}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Stay in group
               </button>
@@ -1093,7 +1103,7 @@ export function GroupManagerPanel({
                 type="button"
                 onClick={confirmLeaveGroup}
                 disabled={isLeaving}
-                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isLeaving ? "Leaving..." : "Leave group"}
               </button>
@@ -1104,7 +1114,7 @@ export function GroupManagerPanel({
 
       {pendingOwnershipChange ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-3xl border border-amber-400/30 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-md rounded-lg border border-amber-400/30 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-amber-200">
               Transfer ownership
             </p>
@@ -1120,7 +1130,7 @@ export function GroupManagerPanel({
                 type="button"
                 onClick={() => setPendingOwnershipChange(null)}
                 disabled={roleUpdatingId === pendingOwnershipChange.userId}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1128,11 +1138,15 @@ export function GroupManagerPanel({
                 type="button"
                 onClick={() => {
                   if (!pendingOwnershipChange) return;
-                  void updateMemberRole(pendingOwnershipChange.userId, "OWNER");
+                  void updateMemberRole(
+                    pendingOwnershipChange.userId,
+                    "OWNER",
+                    pendingOwnershipChange.name
+                  );
                   setPendingOwnershipChange(null);
                 }}
                 disabled={roleUpdatingId === pendingOwnershipChange.userId}
-                className="flex-1 rounded-2xl bg-amber-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex-1 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {roleUpdatingId === pendingOwnershipChange.userId
                   ? "Transferring..."

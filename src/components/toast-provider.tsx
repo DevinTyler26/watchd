@@ -66,7 +66,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl shadow-black/30 ${
+            className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm shadow-xl shadow-black/30 ${
               toast.tone === "success"
                 ? "border-emerald/40 bg-emerald/95 text-emerald-50"
                 : toast.tone === "warning"

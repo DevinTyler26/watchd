@@ -98,7 +98,7 @@ export function AdminAllowlistPanel() {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-night/30 p-4 text-white">
+    <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4 text-white">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -117,21 +117,21 @@ export function AdminAllowlistPanel() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="person@example.com"
-          className="flex-1 rounded-2xl border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
+          className="flex-1 rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-white focus:border-brand focus:outline-none"
           disabled={busy}
         />
         <button
           type="button"
           onClick={addEmail}
           disabled={busy || !email.trim()}
-          className="rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20 disabled:opacity-40"
+          className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20 disabled:opacity-40"
         >
           Add email
         </button>
       </div>
 
       {error ? (
-        <p className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+        <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
           {error}
         </p>
       ) : null}
@@ -145,7 +145,7 @@ export function AdminAllowlistPanel() {
           {entries.map((entry) => (
             <li
               key={entry.email}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-night/40 px-4 py-3"
+              className="flex items-center justify-between rounded-lg border border-white/10 bg-night/40 px-4 py-3"
             >
               <div>
                 <p className="text-sm font-semibold">{entry.email}</p>
@@ -157,7 +157,7 @@ export function AdminAllowlistPanel() {
                 type="button"
                 onClick={() => removeEmail(entry.email)}
                 disabled={busy}
-                className="rounded-2xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-40"
+                className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-40"
               >
                 Remove
               </button>

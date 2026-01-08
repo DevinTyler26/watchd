@@ -54,7 +54,7 @@ export function GroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
         value={activeCode}
         onChange={(event) => updateSelection(event.target.value)}
         disabled={!hasGroups && activeCode !== "personal"}
-        className="rounded-2xl border border-white/10 bg-night/40 px-4 py-3 text-base text-white focus:border-brand focus:outline-none disabled:opacity-60"
+        className="rounded-lg border border-white/10 bg-night/40 px-4 py-3 text-base text-white focus:border-brand focus:outline-none disabled:opacity-60"
       >
         <option value="personal">Personal feed</option>
         {groups.map((group) => (
@@ -105,7 +105,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
           value={activeCode}
           onChange={(event) => updateSelection(event.target.value)}
           disabled={!hasGroups && activeCode !== "personal"}
-          className="appearance-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:opacity-60"
+          className="appearance-none rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:opacity-60"
         >
           <option value="personal">Personal feed</option>
           {groups.map((group) => (
@@ -124,7 +124,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
         type="button"
         onClick={() => setIsOpen(true)}
         disabled={!hasGroups && activeCode !== "personal"}
-        className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60 sm:hidden"
+        className="flex items-center justify-between rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60 sm:hidden"
       >
         <span>
           {options.find((o) => o.value === activeCode)?.label ??
@@ -149,7 +149,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
             onClick={() => setIsOpen(false)}
             aria-hidden
           />
-          <div className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-3xl border border-white/10 bg-night/95 p-4 pb-6 shadow-2xl shadow-black/40">
+          <div className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-lg border border-white/10 bg-night/95 p-4 pb-6 shadow-2xl shadow-black/40">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
@@ -188,7 +188,7 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
                     key={option.value}
                     type="button"
                     onClick={() => handleSelect(option.value)}
-                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                    className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition ${
                       isActive
                         ? "border-brand bg-brand/10 text-white"
                         : "border-white/10 bg-white/5 text-white/80 hover:border-white/20 hover:bg-white/10"

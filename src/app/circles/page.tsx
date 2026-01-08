@@ -42,7 +42,7 @@ export default async function CirclesPage({
       <div className="min-h-screen pb-24">
         <SiteHeader session={session} />
         <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6">
-          <section className="rounded-3xl border border-white/10 bg-night/40 p-6 text-center text-white/80">
+          <section className="rounded-lg border border-white/10 bg-night/40 p-6 text-center text-white/80">
             <p className="text-lg font-semibold">Sign in required</p>
             <p className="mt-2 text-sm text-white/60">
               Circles are available once you log in. Use the button above to

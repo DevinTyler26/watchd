@@ -70,7 +70,7 @@ export function NotificationPreferences({ groups }: Props) {
           {prefs.map((group) => (
             <li
               key={group.id}
-              className="rounded-2xl border border-white/10 bg-night/40 p-4"
+              className="rounded-lg border border-white/10 bg-night/40 p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

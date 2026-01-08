@@ -265,7 +265,7 @@ export function EntryCard({
 
   return (
     <article
-      className={`flex flex-col gap-6 rounded-3xl border border-white/5 bg-white/5 p-4 shadow-xl shadow-black/30 transition-all duration-500 sm:p-6 ${
+      className={`flex flex-col gap-6 rounded-lg border border-white/5 bg-white/5 p-4 shadow-xl shadow-black/30 transition-all duration-500 sm:p-6 ${
         isRemoving ? "pointer-events-none scale-[0.98] opacity-0" : ""
       } ${
         isCollapsed ? "max-h-0 overflow-hidden border-transparent p-0" : ""
@@ -305,7 +305,7 @@ export function EntryCard({
             width={128}
             height={192}
             sizes="(min-width: 1024px) 128px, 96px"
-            className="h-[140px] w-[96px] shrink-0 rounded-2xl border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
+            className="h-[140px] w-[96px] shrink-0 rounded-lg border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
           />
         ) : (
           <Image
@@ -314,12 +314,12 @@ export function EntryCard({
             width={128}
             height={192}
             sizes="(min-width: 1024px) 128px, 96px"
-            className="h-[140px] w-[96px] shrink-0 rounded-2xl border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
+            className="h-[140px] w-[96px] shrink-0 rounded-lg border border-white/10 object-cover sm:h-[160px] sm:w-[112px] lg:h-[192px] lg:w-[128px]"
           />
         )}
         <div className="min-w-0 flex-1 space-y-3">
           {plot ? (
-            <p className="rounded-2xl border border-white/5 bg-white/5 p-3 text-sm text-white/70">
+            <p className="rounded-lg border border-white/5 bg-white/5 p-3 text-sm text-white/70">
               <span className="mb-1 block text-[10px] uppercase tracking-[0.35em] text-white/40">
                 Plot
               </span>
@@ -328,7 +328,7 @@ export function EntryCard({
           ) : null}
           <div className="hidden sm:block">{watchProvidersContent}</div>
           {entry.review ? (
-            <p className="rounded-2xl bg-night/60 p-4 text-sm text-white/80">
+            <p className="rounded-lg bg-night/60 p-4 text-sm text-white/80">
               {entry.review}
             </p>
           ) : null}
