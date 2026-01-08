@@ -12,6 +12,27 @@ function assertEnv(name: string) {
   return value;
 }
 
+const isPreviewOrDev =
+  process.env.VERCEL_ENV === "preview" ||
+  process.env.NODE_ENV === "development";
+const hasGoogleCredentials = Boolean(
+  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+);
+const requireGoogleCredentials =
+  process.env.VERCEL_ENV === "production" ||
+  process.env.NODE_ENV === "production";
+if (requireGoogleCredentials && !hasGoogleCredentials) {
+  throw new Error(
+    "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in production."
+  );
+}
+
+const previewAuthEmail = process.env.PREVIEW_AUTH_EMAIL?.toLowerCase();
+const previewAuthPassword = process.env.PREVIEW_AUTH_PASSWORD;
+const previewAuthEnabled = Boolean(
+  isPreviewOrDev && previewAuthEmail && previewAuthPassword
+);
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
@@ -21,16 +42,52 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
   providers: [
-    Google({
-      clientId: assertEnv("GOOGLE_CLIENT_ID"),
-      clientSecret: assertEnv("GOOGLE_CLIENT_SECRET"),
-      allowDangerousEmailAccountLinking: true,
-      authorization: {
-        params: {
-          prompt: "select_account",
-        },
-      },
-    }),
+    ...(hasGoogleCredentials
+      ? [
+          Google({
+            clientId: assertEnv("GOOGLE_CLIENT_ID"),
+            clientSecret: assertEnv("GOOGLE_CLIENT_SECRET"),
+            allowDangerousEmailAccountLinking: true,
+            authorization: {
+              params: {
+                prompt: "select_account",
+              },
+            },
+          }),
+        ]
+      : []),
+    ...(previewAuthEnabled
+      ? [
+          Credentials({
+            name: "Preview",
+            credentials: {
+              email: { label: "Email", type: "email" },
+              password: { label: "Password", type: "password" },
+            },
+            async authorize(credentials) {
+              const email = credentials?.email?.toLowerCase();
+              const password = credentials?.password;
+              if (
+                !email ||
+                !password ||
+                email !== previewAuthEmail ||
+                password !== previewAuthPassword
+              ) {
+                return null;
+              }
+              const user = await prisma.user.upsert({
+                where: { email },
+                update: {},
+                create: {
+                  email,
+                  name: "Preview User",
+                },
+              });
+              return { id: user.id, email: user.email, name: user.name };
+            },
+          }),
+        ]
+      : []),
     ...(process.env.E2E_AUTH === "1"
       ? [
           Credentials({
@@ -57,8 +114,13 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "credentials" && process.env.E2E_AUTH === "1") {
-        return true;
+      if (account?.provider === "credentials") {
+        if (process.env.E2E_AUTH === "1") {
+          return true;
+        }
+        if (previewAuthEnabled) {
+          return true;
+        }
       }
       // Admins bypass allowlist.
       const dbUser = await prisma.user.findUnique({
