@@ -57,7 +57,7 @@ export function getRedisClient(): RedisClient | null {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
-      retryStrategy: null,
+      retryStrategy: () => null,
     });
     client.on("error", (error) => {
       debugLog("ioredis error", {
