@@ -104,15 +104,14 @@ export function GroupManagerPanel({
       );
 
       try {
-        const { data } = await apiJson<{ group?: { name?: string; shareCode?: string } }>(
-          "/api/groups/join",
-          {
+        const { data } = await apiJson<{
+          group?: { name?: string; shareCode?: string };
+        }>("/api/groups/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: trimmed }),
           retries: 1,
-          }
-        );
+        });
 
         setJoinToken("");
         setStatusMessage(null);
@@ -209,15 +208,12 @@ export function GroupManagerPanel({
     try {
       const { data } = await apiJson<{
         group: { id: string; name: string; shareCode: string };
-      }>(
-        "/api/groups",
-        {
+      }>("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: createName.trim() }),
         retries: 1,
-        }
-      );
+      });
 
       setCreateName("");
       setStatusMessage(null);
@@ -266,10 +262,10 @@ export function GroupManagerPanel({
       const { data } = await apiJson<{ emailSent: boolean; token?: string }>(
         `/api/groups/${activeGroupId}/invite`,
         {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, role: inviteRole }),
-        retries: 1,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail, role: inviteRole }),
+          retries: 1,
         }
       );
 
@@ -401,7 +397,10 @@ export function GroupManagerPanel({
         });
       }
       if (err instanceof ApiError && err.status === 429) {
-        addToast("You're renaming too quickly. Try again in a moment.", "error");
+        addToast(
+          "You're renaming too quickly. Try again in a moment.",
+          "error"
+        );
         return;
       }
       if (err instanceof ApiError) {
@@ -549,7 +548,7 @@ export function GroupManagerPanel({
             }
           }}
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40 md:max-w-lg md:p-8">
             <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
               Circle created
             </p>
@@ -576,7 +575,18 @@ export function GroupManagerPanel({
                 }}
                 className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Go to circle
+                Manage this circle
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetCode = createdGroupModal.shareCode;
+                  setCreatedGroupModal(null);
+                  void router.push(`/?group=${targetCode}`);
+                }}
+                className="flex-1 rounded-2xl border border-emerald-400/50 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                View feed
               </button>
             </div>
           </div>
@@ -636,9 +646,7 @@ export function GroupManagerPanel({
             <p className="text-xs uppercase tracking-[0.4em] text-amber-300">
               Invite pending
             </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Resend this invite?
-            </h3>
+            <h3 className="mt-2 text-2xl font-semibold">Resend this invite?</h3>
             <p className="mt-3 text-sm text-white/70">
               {pendingInviteModal.email} already has a pending invite. You can
               resend it or keep the existing one. If you resend, the previous
