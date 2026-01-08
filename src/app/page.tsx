@@ -351,7 +351,7 @@ export default async function Home({
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border border-dashed border-white/10 p-10 text-center text-white/60">
+            <div className="rounded-lg border border-dashed border-white/10 p-10 text-center text-white/60">
               Nobody has logged anything yet. Be the first to drop a rec!
             </div>
           )}

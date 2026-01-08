@@ -148,7 +148,7 @@ export function EntryShareMenu({
           value={selection}
           onChange={(event) => handleChange(event.target.value)}
           disabled={isPending}
-          className={`w-full appearance-none rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-left font-semibold uppercase tracking-[0.25em] text-white/80 transition focus:border-emerald focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`w-full appearance-none rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-left font-semibold uppercase tracking-[0.25em] text-white/80 transition focus:border-emerald focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
             isCompact ? "text-[11px]" : "text-sm"
           }`}
         >

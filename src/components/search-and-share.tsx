@@ -378,13 +378,13 @@ export function SearchAndShare({
   return (
     <>
       <div className="space-y-6">
-        <div className="rounded-2xl border border-white/10 bg-night/40 px-4 py-3 text-sm text-white/70">
+        <div className="rounded-lg border border-white/10 bg-night/40 px-4 py-3 text-sm text-white/70">
           Sharing with{" "}
           <span className="font-semibold text-white">{target.label}</span>
         </div>
         <form
           onSubmit={handleSearch}
-          className="relative z-[100] space-y-4 rounded-2xl border border-white/10 bg-night/40 p-3 backdrop-blur sm:p-4"
+          className="relative z-[100] space-y-4 rounded-lg border border-white/10 bg-night/40 p-3 backdrop-blur sm:p-4"
         >
           <div className="flex flex-wrap gap-2">
             {filters.map((item) => (
@@ -412,10 +412,10 @@ export function SearchAndShare({
                   if (suggestions.length) setShowSuggestions(true);
                 }}
                 placeholder="Search for a title, e.g. The Office"
-                className="w-full rounded-2xl border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
+                className="w-full rounded-lg border border-white/10 bg-transparent px-4 py-3 text-base text-mist placeholder-white/40 focus:border-brand focus:outline-none"
               />
               {showSuggestions && (suggestions.length || isSuggesting) ? (
-                <div className="absolute z-[200] mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-night/95 shadow-2xl shadow-black/40">
+                <div className="absolute z-[200] mt-2 w-full overflow-hidden rounded-lg border border-white/10 bg-night/95 shadow-2xl shadow-black/40">
                   {isSuggesting ? (
                     <div className="flex items-center gap-3 px-4 py-3 text-sm text-white/60">
                       <span
@@ -454,7 +454,7 @@ export function SearchAndShare({
               <button
                 type="submit"
                 disabled={disabled || isSearching}
-                className="flex-1 rounded-2xl bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
+                className="flex-1 rounded-lg bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-brand-muted disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
               >
                 {isSearching ? "Searching…" : "Pull from TMDB"}
               </button>
@@ -462,7 +462,7 @@ export function SearchAndShare({
                 type="button"
                 onClick={clearSearch}
                 disabled={!hasSearched && !results.length && !query}
-                className="h-full rounded-2xl border border-white/15 px-3 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
+                className="h-full rounded-lg border border-white/15 px-3 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
               >
                 Clear
               </button>
@@ -476,7 +476,7 @@ export function SearchAndShare({
             {results.map((result, index) => (
               <li
                 key={`${result.imdbId}-${index}`}
-                className="rounded-3xl border border-white/5 bg-white/5 p-2 shadow-lg shadow-black/20 sm:p-4"
+                className="rounded-lg border border-white/5 bg-white/5 p-2 shadow-lg shadow-black/20 sm:p-4"
               >
                 <div className="flex items-start gap-4">
                   <div className="flex shrink-0 flex-col items-start gap-3">
@@ -488,7 +488,7 @@ export function SearchAndShare({
                         alt={result.title}
                         width={160}
                         height={240}
-                        className="rounded-2xl border border-white/10 object-cover"
+                        className="rounded-lg border border-white/10 object-cover"
                         onError={() =>
                           setPosterErrorById((prev) => ({
                             ...prev,
@@ -502,7 +502,7 @@ export function SearchAndShare({
                         alt="Poster unavailable"
                         width={160}
                         height={240}
-                        className="rounded-2xl border border-white/10 object-cover"
+                        className="rounded-lg border border-white/10 object-cover"
                       />
                     )}
                   </div>
@@ -572,7 +572,7 @@ export function SearchAndShare({
                           }))
                         }
                         placeholder="Add a comment (optional)"
-                        className="min-h-16 w-full rounded-2xl border border-white/10 bg-night/60 p-3 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
+                        className="min-h-16 w-full rounded-lg border border-white/10 bg-night/60 p-3 text-sm text-white placeholder-white/40 focus:border-brand focus:outline-none"
                         maxLength={500}
                       />
                       <div className="mt-3 flex flex-wrap items-center justify-end gap-4 text-sm">
@@ -638,7 +638,7 @@ export function SearchAndShare({
                             (actionState.status === "saving" &&
                               actionState.id === result.imdbId)
                           }
-                          className="h-11 rounded-2xl bg-emerald px-6 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="h-11 rounded-lg bg-emerald px-6 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {blockedIds.has(result.imdbId)
                             ? "Already shared"
@@ -685,7 +685,7 @@ export function SearchAndShare({
 
       {confirmation ? (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-night/90 p-6 text-center text-white shadow-2xl shadow-black/40">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-6 text-center text-white shadow-2xl shadow-black/40">
             <p className="text-xs uppercase tracking-[0.4em] text-emerald">
               Entry added
             </p>
@@ -701,7 +701,7 @@ export function SearchAndShare({
                 alt={confirmation.title}
                 width={120}
                 height={180}
-                className="mx-auto mt-4 rounded-2xl border border-white/10 object-cover"
+                className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
               />
             ) : (
               <Image
@@ -709,21 +709,21 @@ export function SearchAndShare({
                 alt="Poster unavailable"
                 width={120}
                 height={180}
-                className="mx-auto mt-4 rounded-2xl border border-white/10 object-cover"
+                className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
               />
             )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={() => setConfirmation(null)}
-                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
                 Keep browsing
               </button>
               <button
                 type="button"
                 onClick={scrollToFeed}
-                className="flex-1 rounded-2xl bg-emerald px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
+                className="flex-1 rounded-lg bg-emerald px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
               >
                 View feed
               </button>

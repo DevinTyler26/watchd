@@ -148,7 +148,7 @@ export function RemoveEntryButton({
       {confirming && portalTarget
         ? createPortal(
             <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
-              <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
+              <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
                 <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
                   Heads up
                 </p>
@@ -164,7 +164,7 @@ export function RemoveEntryButton({
                     type="button"
                     onClick={() => setConfirming(false)}
                     disabled={isPending}
-                    className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Keep it
                   </button>
@@ -172,7 +172,7 @@ export function RemoveEntryButton({
                     type="button"
                     onClick={confirmRemove}
                     disabled={isPending}
-                    className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isPending ? (
                       <span className="flex items-center justify-center gap-2">

@@ -48,7 +48,7 @@ export function SharedWatchlistHero({
   };
 
   return (
-    <section className="space-y-6 rounded-3xl border border-white/5 bg-midnight/60 p-8 text-white shadow-2xl shadow-black/40">
+    <section className="space-y-6 rounded-lg border border-white/5 bg-midnight/60 p-8 text-white shadow-2xl shadow-black/40">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-4">
           <p className="text-sm uppercase tracking-[0.5em] text-white/60">
@@ -78,7 +78,7 @@ export function SharedWatchlistHero({
         ) : null}
       </div>
       {!signedIn ? (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+        <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/80">
           Sign in with Google to start logging your queue and invite your crew.
         </div>
       ) : null}

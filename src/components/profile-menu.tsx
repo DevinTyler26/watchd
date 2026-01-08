@@ -66,7 +66,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-semibold uppercase text-white transition hover:border-white/30"
+        className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-sm font-semibold uppercase text-white transition hover:border-white/30"
         aria-label="Account menu"
       >
         {user.image ? (
@@ -75,14 +75,14 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             alt={user.name ?? "Profile"}
             width={44}
             height={44}
-            className="h-11 w-11 rounded-2xl object-cover"
+            className="h-11 w-11 rounded-lg object-cover"
           />
         ) : (
           getInitials(user.name)
         )}
       </button>
       {open ? (
-        <div className="absolute right-0 mt-3 w-64 rounded-2xl border border-white/10 bg-night/80 p-4 text-sm text-white shadow-2xl shadow-black/40 backdrop-blur-xl">
+        <div className="absolute right-0 mt-3 w-64 rounded-lg border border-white/10 bg-night/80 p-4 text-sm text-white shadow-2xl shadow-black/40 backdrop-blur-xl">
           <div className="space-y-1">
             <p className="text-[11px] uppercase tracking-[0.25em] text-white/50">
               Signed in
@@ -97,7 +97,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-between rounded-xl bg-emerald/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald/25"
+                className="flex w-full items-center justify-between rounded-lg bg-emerald/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald/25"
               >
                 <span>Admin console</span>
                 <span aria-hidden>→</span>
@@ -106,7 +106,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             <Link
               href={feedHref}
               onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="flex w-full items-center justify-between rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               <span>Feed</span>
               <span aria-hidden>→</span>
@@ -114,7 +114,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="flex w-full items-center justify-between rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               <span>Notifications</span>
               <span aria-hidden>→</span>
@@ -122,7 +122,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             <Link
               href={circlesHref}
               onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+              className="flex w-full items-center justify-between rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               <span>Manage circles</span>
               <span aria-hidden>→</span>
@@ -136,7 +136,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
                 });
               }}
               disabled={isSigningOut}
-              className="flex w-full items-center justify-between rounded-xl bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
+              className="flex w-full items-center justify-between rounded-lg bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
             >
               <span className="flex items-center gap-2">
                 {isSigningOut ? (

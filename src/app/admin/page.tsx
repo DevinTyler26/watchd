@@ -10,7 +10,7 @@ export default async function AdminPage() {
       <div className="min-h-screen pb-24">
         <SiteHeader session={session} />
         <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6">
-          <section className="rounded-3xl border border-white/10 bg-night/40 p-6 text-center text-white/80">
+          <section className="rounded-lg border border-white/10 bg-night/40 p-6 text-center text-white/80">
             <p className="text-lg font-semibold">Sign in required</p>
             <p className="mt-2 text-sm text-white/60">
               Admin controls are available once you log in. Use the button above
@@ -27,7 +27,7 @@ export default async function AdminPage() {
       <div className="min-h-screen pb-24">
         <SiteHeader session={session} />
         <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6">
-          <section className="rounded-3xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-white/90">
+          <section className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-6 text-center text-white/90">
             <p className="text-lg font-semibold">Admins only</p>
             <p className="mt-2 text-sm text-white/80">
               You need elevated access to manage sign-in allowlists. Ask an
@@ -56,7 +56,7 @@ export default async function AdminPage() {
 
         <AdminAllowlistPanel />
 
-        <section className="rounded-2xl border border-white/5 bg-night/40 p-4 text-sm text-white/70">
+        <section className="rounded-lg border border-white/5 bg-night/40 p-4 text-sm text-white/70">
           <p className="font-semibold text-white">How this works</p>
           <p className="mt-2 text-white/70">
             Sign-in succeeds only for emails on the allowlist. ADMIN accounts

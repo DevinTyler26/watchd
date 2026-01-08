@@ -80,7 +80,7 @@ export function EntryShareModal({
                 }
               }}
             >
-              <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
+              <div className="w-full max-w-xl rounded-lg border border-white/10 bg-night/90 p-6 text-white shadow-2xl shadow-black/40">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.4em] text-white/50">

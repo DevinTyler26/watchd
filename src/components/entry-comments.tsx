@@ -262,7 +262,7 @@ export function EntryComments({
     <div
       className={
         containerClassName ??
-        `${stackGap} rounded-2xl border border-white/10 bg-night/40 p-3`
+        `${stackGap} rounded-lg border border-white/10 bg-night/40 p-3`
       }
     >
       {hideHeader ? null : (
@@ -291,7 +291,7 @@ export function EntryComments({
       )}
 
       {error ? (
-        <p className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+        <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
           {error}
         </p>
       ) : null}
@@ -327,7 +327,7 @@ export function EntryComments({
                     <textarea
                       value={editDraft}
                       onChange={(event) => setEditDraft(event.target.value)}
-                      className="w-full rounded-xl border border-white/20 bg-white/5 px-2 py-2 text-sm text-white focus:border-brand focus:outline-none"
+                      className="w-full rounded-lg border border-white/20 bg-white/5 px-2 py-2 text-sm text-white focus:border-brand focus:outline-none"
                       rows={2}
                       maxLength={500}
                       disabled={editSubmitting}
@@ -395,7 +395,7 @@ export function EntryComments({
             onChange={(event) => setDraft(event.target.value)}
             placeholder={canComment ? "Add a comment" : "Sign in to comment"}
             disabled={!canComment || submitting}
-            className="w-full rounded-2xl border border-white/15 bg-transparent px-3 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg border border-white/15 bg-transparent px-3 py-2 text-sm text-white focus:border-brand focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             rows={2}
             maxLength={500}
           />
@@ -403,7 +403,7 @@ export function EntryComments({
             <button
               type="submit"
               disabled={!canComment || submitting || !draft.trim()}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <>
