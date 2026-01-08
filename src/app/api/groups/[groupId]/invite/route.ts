@@ -12,6 +12,7 @@ import { getRateLimitKey, rateLimit } from "@/lib/rate-limit";
 const inviteSchema = z.object({
   email: z.string().email(),
   role: z.enum(["OWNER", "EDITOR", "VIEWER"]).optional(),
+  resend: z.boolean().optional(),
 });
 
 export async function POST(
@@ -105,6 +106,23 @@ export async function POST(
     }
   }
 
+  const existingInvite = await prisma.groupInvite.findFirst({
+    where: {
+      groupId,
+      email: normalizedEmail,
+      acceptedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+
+  if (existingInvite && !parsed.data.resend) {
+    return jsonResponse(
+      { error: "That email already has a pending invite." },
+      { status: 400 }
+    );
+  }
+
   const inviteRole = parsed.data.role ?? "EDITOR";
 
   if (inviteRole === "OWNER" && membership.role !== "OWNER") {
@@ -119,6 +137,10 @@ export async function POST(
     update: {},
     create: { email: normalizedEmail, createdById: session.user.id },
   });
+
+  if (existingInvite) {
+    await prisma.groupInvite.delete({ where: { id: existingInvite.id } });
+  }
 
   const invite = await prisma.groupInvite.create({
     data: {

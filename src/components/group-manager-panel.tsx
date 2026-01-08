@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { apiJson, ApiError } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-errors";
 import { groupMembersResponseSchema } from "@/lib/group-schemas";
+import { useToast } from "@/components/toast-provider";
 
 type GroupSummary = {
   id: string;
@@ -58,12 +59,37 @@ export function GroupManagerPanel({
   const [members, setMembers] = useState<MemberEntry[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState<string | null>(null);
+  const [groupNameDraft, setGroupNameDraft] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const { addToast } = useToast();
+  const [pendingInviteModal, setPendingInviteModal] = useState<{
+    email: string;
+  } | null>(null);
+  const [createdGroupModal, setCreatedGroupModal] = useState<{
+    name: string;
+    shareCode: string;
+  } | null>(null);
+  const [deleteGroupModal, setDeleteGroupModal] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
 
   const activeGroup = activeGroupId
     ? groups.find((group) => group.id === activeGroupId) ?? null
     : null;
   const isManager = activeGroupRole === "OWNER" || activeGroupRole === "EDITOR";
   const isOwner = activeGroupRole === "OWNER";
+
+  useEffect(() => {
+    if (!activeGroup) {
+      setGroupNameDraft("");
+      setIsEditingName(false);
+      return;
+    }
+    setGroupNameDraft(activeGroup.name);
+  }, [activeGroup]);
 
   const attemptJoinToken = useCallback(
     async (token: string, options?: { fromLink?: boolean }) => {
@@ -181,7 +207,9 @@ export function GroupManagerPanel({
     }
 
     try {
-      const { data } = await apiJson<{ group: { name: string } }>(
+      const { data } = await apiJson<{
+        group: { id: string; name: string; shareCode: string };
+      }>(
         "/api/groups",
         {
         method: "POST",
@@ -192,7 +220,11 @@ export function GroupManagerPanel({
       );
 
       setCreateName("");
-      setStatusMessage(`Created ${data.group.name}.`);
+      setStatusMessage(null);
+      setCreatedGroupModal({
+        name: data.group.name,
+        shareCode: data.group.shareCode,
+      });
       router.refresh();
     } catch (err) {
       if (err instanceof ApiError && err.requestId) {
@@ -203,6 +235,11 @@ export function GroupManagerPanel({
         });
       }
       if (err instanceof ApiError) {
+        if (err.message === "That email already has a pending invite.") {
+          setStatusMessage(null);
+          addToast(err.message, "warning");
+          return;
+        }
         setStatusMessage(err.message);
         return;
       }
@@ -238,10 +275,11 @@ export function GroupManagerPanel({
 
       setInviteEmail("");
       setInviteRole("EDITOR");
+      setStatusMessage(null);
       if (data.emailSent) {
-        setStatusMessage(`Invite sent to ${normalizedEmail}.`);
+        addToast(`Invite sent to ${normalizedEmail}.`, "success");
       } else {
-        setStatusMessage(`Invite ready. Share token: ${data.token}`);
+        addToast(`Invite ready. Share token: ${data.token}`, "success");
       }
     } catch (err) {
       if (err instanceof ApiError && err.requestId) {
@@ -252,12 +290,72 @@ export function GroupManagerPanel({
         });
       }
       if (err instanceof ApiError) {
-        setStatusMessage(err.message);
+        if (err.message.includes("pending invite")) {
+          setPendingInviteModal({ email: normalizedEmail });
+          return;
+        }
+        addToast(err.message, "error");
         return;
       }
-      setStatusMessage("Network issue sending the invite.");
+      addToast("Network issue sending the invite.", "error");
     } finally {
       setIsInviting(false);
+    }
+  }
+
+  async function resendInvite(email: string) {
+    if (!activeGroupId) return;
+    setIsInviting(true);
+    try {
+      const { data } = await apiJson<{ emailSent: boolean; token?: string }>(
+        `/api/groups/${activeGroupId}/invite`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            role: inviteRole,
+            resend: true,
+          }),
+          retries: 0,
+        }
+      );
+      if (data.emailSent) {
+        addToast(`Invite resent to ${email}.`, "success");
+      } else {
+        addToast(`Invite refreshed. Share token: ${data.token}`, "success");
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        addToast(err.message, "error");
+        return;
+      }
+      addToast("Network issue resending invite.", "error");
+    } finally {
+      setIsInviting(false);
+    }
+  }
+
+  async function confirmDeleteGroup() {
+    if (!deleteGroupModal) return;
+    setIsDeletingGroup(true);
+    try {
+      await apiJson(`/api/groups/${deleteGroupModal.id}`, {
+        method: "DELETE",
+        retries: 0,
+      });
+      addToast(`Deleted ${deleteGroupModal.name}.`, "success");
+      setDeleteGroupModal(null);
+      void router.push("/circles");
+      router.refresh();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        addToast(err.message, "error");
+        return;
+      }
+      addToast("Network issue deleting the circle.", "error");
+    } finally {
+      setIsDeletingGroup(false);
     }
   }
 
@@ -265,6 +363,56 @@ export function GroupManagerPanel({
     event.preventDefault();
     setStatusMessage(null);
     await attemptJoinToken(joinToken);
+  }
+
+  async function handleRename(nextName: string) {
+    if (!activeGroupId || !activeGroup) return;
+    const trimmedName = nextName.trim();
+    if (nextName.length < 2) {
+      addToast("Group names need at least two characters.", "error");
+      return;
+    }
+    if (trimmedName === activeGroup.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      const { data } = await apiJson<{ group?: { name?: string } }>(
+        `/api/groups/${activeGroupId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+          retries: 0,
+        }
+      );
+      const updatedName = data?.group?.name ?? trimmedName;
+      setGroupNameDraft(updatedName);
+      addToast(`Renamed to ${updatedName}.`, "success");
+      router.refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.requestId) {
+        void reportClientError({
+          message: err.message,
+          requestId: err.requestId,
+          context: { action: "rename-group", groupId: activeGroupId },
+        });
+      }
+      if (err instanceof ApiError && err.status === 429) {
+        addToast("You're renaming too quickly. Try again in a moment.", "error");
+        return;
+      }
+      if (err instanceof ApiError) {
+        addToast(err.message, "error");
+        return;
+      }
+      addToast("Network issue renaming the group.", "error");
+    } finally {
+      setIsRenaming(false);
+      setIsEditingName(false);
+    }
   }
 
   async function confirmLeaveGroup() {
@@ -392,6 +540,135 @@ export function GroupManagerPanel({
 
   return (
     <div className="space-y-4">
+      {createdGroupModal ? (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setCreatedGroupModal(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+            <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
+              Circle created
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">
+              Jump to {createdGroupModal.name}?
+            </h3>
+            <p className="mt-3 text-sm text-white/70">
+              You can start inviting members or manage roles right away.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setCreatedGroupModal(null)}
+                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Stay here
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetCode = createdGroupModal.shareCode;
+                  setCreatedGroupModal(null);
+                  void router.push(`/circles?group=${targetCode}`);
+                }}
+                className="flex-1 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Go to circle
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {deleteGroupModal ? (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setDeleteGroupModal(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+            <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
+              Danger zone
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">
+              Delete {deleteGroupModal.name}?
+            </h3>
+            <p className="mt-3 text-sm text-white/70">
+              This will permanently remove the circle and all of its entries.
+              This action cannot be undone.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setDeleteGroupModal(null)}
+                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeletingGroup}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteGroup()}
+                className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isDeletingGroup}
+              >
+                {isDeletingGroup ? "Deleting..." : "Delete circle"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {pendingInviteModal ? (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setPendingInviteModal(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
+            <p className="text-xs uppercase tracking-[0.4em] text-amber-300">
+              Invite pending
+            </p>
+            <h3 className="mt-2 text-2xl font-semibold">
+              Resend this invite?
+            </h3>
+            <p className="mt-3 text-sm text-white/70">
+              {pendingInviteModal.email} already has a pending invite. You can
+              resend it or keep the existing one. If you resend, the previous
+              invite link will no longer work.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setPendingInviteModal(null)}
+                className="flex-1 rounded-2xl border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isInviting}
+              >
+                Keep existing
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const email = pendingInviteModal.email;
+                  setPendingInviteModal(null);
+                  void resendInvite(email);
+                }}
+                className="flex-1 rounded-2xl bg-amber-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isInviting}
+              >
+                {isInviting ? "Resending..." : "Resend invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <p className="text-sm text-white/60">{summaryText}</p>
 
       {statusMessage ? (
@@ -407,15 +684,46 @@ export function GroupManagerPanel({
               <p className="text-xs uppercase tracking-[0.4em] text-white/50">
                 Active circle
               </p>
-              <p className="text-xl font-semibold text-white">
-                {activeGroup.name}
-              </p>
+              {isEditingName && isOwner ? (
+                <input
+                  type="text"
+                  value={groupNameDraft}
+                  onChange={(event) => setGroupNameDraft(event.target.value)}
+                  onBlur={() => void handleRename(groupNameDraft)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleRename(groupNameDraft);
+                    }
+                    if (event.key === "Escape") {
+                      setGroupNameDraft(activeGroup.name);
+                      setIsEditingName(false);
+                    }
+                  }}
+                  className="w-full rounded-xl border border-white/15 bg-transparent px-2 py-1.5 text-xl font-semibold text-white focus:border-brand focus:outline-none"
+                  disabled={isRenaming}
+                  autoFocus
+                />
+              ) : (
+                <p
+                  className={`text-xl font-semibold text-white ${
+                    isOwner ? "cursor-text" : ""
+                  }`}
+                  onDoubleClick={() => {
+                    if (!isOwner) return;
+                    setIsEditingName(true);
+                  }}
+                  title={isOwner ? "Double click to rename" : undefined}
+                >
+                  {activeGroup.name}
+                </p>
+              )}
               <p className="text-xs uppercase tracking-[0.3em] text-white/40">
                 {activeGroupRole}
               </p>
             </div>
             {isManager ? (
-              <div className="w-full max-w-sm space-y-2">
+              <div className="w-full max-w-sm space-y-3">
                 <form onSubmit={handleInvite} className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.3em] text-white/50">
                     Invite with role
@@ -585,6 +893,29 @@ export function GroupManagerPanel({
               </ul>
             )}
           </div>
+          {isOwner ? (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-4">
+              <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
+                Danger
+              </p>
+              <p className="mt-2 text-sm text-white/70">
+                Delete this circle and all of its data. This action cannot be
+                undone.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setDeleteGroupModal({
+                    id: activeGroup.id,
+                    name: activeGroup.name,
+                  })
+                }
+                className="mt-3 inline-flex items-center rounded-2xl border border-rose-500/50 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
+              >
+                Delete circle
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-night/30 p-4 text-sm text-white/60">
