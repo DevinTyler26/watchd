@@ -57,6 +57,12 @@ export function getRedisClient(): RedisClient | null {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
+      retryStrategy: null,
+    });
+    client.on("error", (error) => {
+      debugLog("ioredis error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     });
     redisClient = { kind: "ioredis", client };
     debugLog("using ioredis");

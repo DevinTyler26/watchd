@@ -125,7 +125,7 @@ export function SearchAndShare({
     setExpandedPlots({});
   }
 
-  async function runSearch(input: string) {
+  async function runSearch(input: string, preferred?: Suggestion) {
     setIsSearching(true);
     setError(null);
     setHasSearched(true);
@@ -141,9 +141,19 @@ export function SearchAndShare({
         `/api/imdb?${params.toString()}`,
         { retries: 1 }
       );
-      setResults(
-        Array.isArray(data.results) ? data.results.slice(0, 8) : []
-      );
+      const nextResults = Array.isArray(data.results)
+        ? data.results.slice(0, 8)
+        : [];
+      if (preferred) {
+        const matchIndex = nextResults.findIndex(
+          (item) => item.imdbId === preferred.imdbId
+        );
+        if (matchIndex > 0) {
+          const [match] = nextResults.splice(matchIndex, 1);
+          nextResults.unshift(match);
+        }
+      }
+      setResults(nextResults);
     } catch (err) {
       if (err instanceof ApiError && err.requestId) {
         void reportClientError({
@@ -424,7 +434,7 @@ export function SearchAndShare({
                               setQuery(suggestion.title);
                               setShowSuggestions(false);
                               setSkipNextSuggestionFetch(true);
-                              void runSearch(suggestion.title);
+                              void runSearch(suggestion.title, suggestion);
                             }}
                             className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm text-white/80 transition hover:bg-white/10"
                           >
