@@ -27,12 +27,6 @@ export function SiteHeader({ session, viewingFeed, activeCircleCode }: SiteHeade
     resolvedCircleCode && resolvedCircleCode !== "personal"
       ? `/?group=${resolvedCircleCode}`
       : "/";
-  const previewLoginEnabled = Boolean(
-    (process.env.VERCEL_ENV === "preview" ||
-      process.env.NODE_ENV === "development") &&
-      process.env.PREVIEW_AUTH_EMAIL &&
-      process.env.PREVIEW_AUTH_PASSWORD
-  );
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
       <Link
@@ -61,10 +55,7 @@ export function SiteHeader({ session, viewingFeed, activeCircleCode }: SiteHeade
             activeCircleCode={resolvedCircleCode}
           />
         ) : (
-          <AuthButton
-            isAuthenticated={false}
-            showPreviewLogin={previewLoginEnabled}
-          />
+          <AuthButton isAuthenticated={false} />
         )}
       </div>
     </header>
