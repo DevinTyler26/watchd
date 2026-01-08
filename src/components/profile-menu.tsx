@@ -35,6 +35,10 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
     activeCircleCode && activeCircleCode !== "personal"
       ? `/circles?group=${activeCircleCode}`
       : "/circles";
+  const feedHref =
+    activeCircleCode && activeCircleCode !== "personal"
+      ? `/?group=${activeCircleCode}`
+      : "/";
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -99,6 +103,14 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
                 <span aria-hidden>→</span>
               </Link>
             ) : null}
+            <Link
+              href={feedHref}
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+            >
+              <span>Feed</span>
+              <span aria-hidden>→</span>
+            </Link>
             <Link
               href="/notifications"
               onClick={() => setOpen(false)}
