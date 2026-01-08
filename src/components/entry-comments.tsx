@@ -7,6 +7,7 @@ import { apiJson, ApiError } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-errors";
 import { commentsResponseSchema } from "@/lib/comment-schemas";
 import { relativeTimeFromNow } from "@/lib/time";
+import { useToast } from "@/components/toast-provider";
 
 type CommentUser = {
   id: string;
@@ -54,6 +55,7 @@ export function EntryComments({
   const [editDraft, setEditDraft] = useState("");
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (initialComments) {
@@ -150,7 +152,7 @@ export function EntryComments({
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        setError("You're commenting too quickly. Try again in a moment.");
+        addToast("You're commenting too quickly. Try again in a moment.", "error");
         return;
       }
       if (err instanceof ApiError && err.requestId) {

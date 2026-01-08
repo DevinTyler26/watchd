@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { OfflineSync } from "@/components/offline-sync";
+import { ToastProvider } from "@/components/toast-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,8 +37,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-night text-mist`}
       >
-        {children}
-        <OfflineSync />
+        <ToastProvider>
+          {children}
+          <OfflineSync />
+        </ToastProvider>
       </body>
       <Analytics />
     </html>
