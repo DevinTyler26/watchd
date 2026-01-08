@@ -20,6 +20,8 @@ NEXTAUTH_SECRET="generate-a-long-random-string"
 GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 TMDB_API_KEY="your-tmdb-key"
+BASIC_AUTH_USER="preview-user"
+BASIC_AUTH_PASS="preview-pass"
 ```
 
 Google credentials can be obtained from https://console.cloud.google.com. For TMDB, request a free key at https://www.themoviedb.org/settings/api. For PostgreSQL, create the `watchd` database locally (`createdb watchd`) and ensure the user/secret matches the `DATABASE_URL`.
@@ -46,4 +48,6 @@ npm run db:studio    # open Prisma Studio
 ### Development tips
 
 - TMDB enforces rate limits, so keep caching in place for search results.
+- Preview/dev builds are protected by basic auth when `BASIC_AUTH_USER` and
+  `BASIC_AUTH_PASS` are set (prod is unaffected).
 - All Prisma calls live in server components or route handlers; keep client components data-fetch free and hit the provided APIs instead.
