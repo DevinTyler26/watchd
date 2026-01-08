@@ -682,7 +682,6 @@ export function GroupManagerPanel({
           </div>
         </div>
       ) : null}
-      <p className="text-sm text-white/60">{summaryText}</p>
 
       {statusMessage ? (
         <p className="rounded-lg border border-white/10 bg-night/30 p-3 text-center text-sm text-white/80">
@@ -691,7 +690,7 @@ export function GroupManagerPanel({
       ) : null}
 
       {activeGroup ? (
-        <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4">
+        <div className="space-y-4 border-t-2 border-white/25 pt-4 md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -793,7 +792,7 @@ export function GroupManagerPanel({
             )}
           </div>
 
-          <div className="space-y-3 border-t border-white/10 pt-4">
+          <div className="space-y-3 border-t border-dashed border-white/20 pt-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -909,34 +908,10 @@ export function GroupManagerPanel({
                 })}
               </ul>
             )}
-            {isOwner ? <div className="border-b border-white/10" /> : null}
           </div>
-          {isOwner ? (
-            <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-4">
-              <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
-                Danger
-              </p>
-              <p className="mt-2 text-sm text-white/70">
-                Delete this circle and all of its data. This action cannot be
-                undone.
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  setDeleteGroupModal({
-                    id: activeGroup.id,
-                    name: activeGroup.name,
-                  })
-                }
-                className="mt-3 inline-flex items-center rounded-lg border border-rose-500/50 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
-              >
-                Delete circle
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : (
-        <div className="rounded-lg border border-white/10 bg-night/30 p-4 text-sm text-white/60">
+        <div className="border-t-2 border-white/25 pt-4 text-sm text-white/60 md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4">
           Select a circle above to manage members and invites.
         </div>
       )}
@@ -944,7 +919,7 @@ export function GroupManagerPanel({
       <div className="grid gap-6 lg:grid-cols-2">
         <form
           onSubmit={handleCreate}
-          className="space-y-2 rounded-lg border border-white/10 bg-night/30 p-4"
+          className="space-y-2 border-t-2 border-white/25 pt-4 md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4"
         >
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
             Start a circle
@@ -966,7 +941,7 @@ export function GroupManagerPanel({
 
         <form
           onSubmit={handleJoin}
-          className="space-y-2 rounded-lg border border-white/10 bg-night/30 p-4"
+          className="space-y-2 border-t-2 border-white/25 pt-4 md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4"
         >
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
             Join via token
@@ -987,7 +962,7 @@ export function GroupManagerPanel({
         </form>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4">
+      <div className="space-y-4 border-t-2 border-white/25 pt-4 md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -1015,9 +990,18 @@ export function GroupManagerPanel({
                   </p>
                 </div>
                 {group.role === "OWNER" ? (
-                  <span className="text-xs text-white/50">
-                    Owners can&apos;t leave
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDeleteGroupModal({
+                        id: group.id,
+                        name: group.name,
+                      })
+                    }
+                    className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/10"
+                  >
+                    Delete circle
+                  </button>
                 ) : (
                   <button
                     type="button"

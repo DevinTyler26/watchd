@@ -18,12 +18,14 @@ type ViewingFeedConfig = {
 type SiteHeaderProps = {
   session: Session | null;
   viewingFeed?: ViewingFeedConfig;
+  activeCircleCode?: string;
 };
 
-export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
+export function SiteHeader({ session, viewingFeed, activeCircleCode }: SiteHeaderProps) {
+  const resolvedCircleCode = viewingFeed?.activeCode ?? activeCircleCode;
   const homeHref =
-    viewingFeed?.activeCode && viewingFeed.activeCode !== "personal"
-      ? `/?group=${viewingFeed.activeCode}`
+    resolvedCircleCode && resolvedCircleCode !== "personal"
+      ? `/?group=${resolvedCircleCode}`
       : "/";
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
@@ -50,7 +52,7 @@ export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
               image: session.user.image,
               role: session.user.role,
             }}
-            activeCircleCode={viewingFeed?.activeCode}
+            activeCircleCode={resolvedCircleCode}
           />
         ) : (
           <AuthButton isAuthenticated={false} />
