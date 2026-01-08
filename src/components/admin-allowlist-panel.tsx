@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiJson, ApiError } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-errors";
 
@@ -15,7 +15,37 @@ export function AdminAllowlistPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "email">(
+    "newest"
+  );
+
+  const sortedEntries = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filtered = normalizedSearch
+      ? entries.filter((entry) =>
+          entry.email.toLowerCase().includes(normalizedSearch)
+        )
+      : entries;
+    const copy = [...filtered];
+    switch (sortOrder) {
+      case "oldest":
+        return copy.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime()
+        );
+      case "email":
+        return copy.sort((a, b) => a.email.localeCompare(b.email));
+      default:
+        return copy.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime()
+        );
+    }
+  }, [entries, sortOrder, searchTerm]);
 
   async function load() {
     setLoading(true);
@@ -108,7 +138,9 @@ export function AdminAllowlistPanel() {
             Only emails here can sign in (admins always can).
           </p>
         </div>
-        <span className="text-xs text-white/50">{entries.length} allowed</span>
+        <div className="flex items-center gap-3 text-xs text-white/50">
+          <span>{entries.length} allowed</span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -129,6 +161,34 @@ export function AdminAllowlistPanel() {
           Add email
         </button>
       </div>
+      <div className="border-t border-dashed border-white/20" />
+      <div className="flex items-center gap-2">
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Search email"
+          className="flex-1 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white focus:border-brand focus:outline-none"
+        />
+        <div className="flex items-center gap-3 text-xs text-white/50">
+          <label className="flex items-center gap-2">
+            <span className="hidden uppercase tracking-[0.3em] text-white/40 sm:inline">
+              Sort
+            </span>
+            <select
+              value={sortOrder}
+              onChange={(event) =>
+                setSortOrder(event.target.value as typeof sortOrder)
+              }
+              className="rounded-lg border border-white/10 bg-night/60 px-2 py-1 text-xs text-white focus:border-brand focus:outline-none"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="email">Email</option>
+            </select>
+          </label>
+        </div>
+      </div>
 
       {error ? (
         <p className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
@@ -140,9 +200,11 @@ export function AdminAllowlistPanel() {
         <p className="text-sm text-white/60">Loading allowlist...</p>
       ) : entries.length === 0 ? (
         <p className="text-sm text-white/60">No allowed emails yet.</p>
+      ) : sortedEntries.length === 0 ? (
+        <p className="text-sm text-white/60">No matching emails.</p>
       ) : (
         <ul className="space-y-2">
-          {entries.map((entry) => (
+          {sortedEntries.map((entry) => (
             <li
               key={entry.email}
               className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3"
