@@ -68,17 +68,11 @@ export function NotificationPreferences({ groups }: Props) {
       ) : (
         <ul className="space-y-3">
           {prefs.map((group) => (
-            <li
-              key={group.id}
-              className="rounded-lg border border-white/10 bg-night/40 p-4"
-            >
+            <li key={group.id} className="rounded-lg bg-white/5 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-base font-semibold text-white">
                     {group.name}
-                  </p>
-                  <p className="text-xs text-white/50">
-                    Decide how you want updates from this circle.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 text-sm text-white/80">

@@ -39,6 +39,14 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
     activeCircleCode && activeCircleCode !== "personal"
       ? `/?group=${activeCircleCode}`
       : "/";
+  const notificationsHref =
+    activeCircleCode && activeCircleCode !== "personal"
+      ? `/notifications?group=${activeCircleCode}`
+      : "/notifications";
+  const adminHref =
+    activeCircleCode && activeCircleCode !== "personal"
+      ? `/admin?group=${activeCircleCode}`
+      : "/admin";
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -95,7 +103,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
           <div className="mt-4 space-y-2">
             {user.role === "ADMIN" ? (
               <Link
-                href="/admin"
+                href={adminHref}
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center justify-between rounded-lg bg-emerald/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald/25"
               >
@@ -112,7 +120,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
               <span aria-hidden>→</span>
             </Link>
             <Link
-              href="/notifications"
+              href={notificationsHref}
               onClick={() => setOpen(false)}
               className="flex w-full items-center justify-between rounded-lg bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >

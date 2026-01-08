@@ -3,14 +3,22 @@ import { SiteHeader } from "@/components/header";
 import { NotificationPreferences } from "@/components/notification-preferences";
 import { prisma } from "@/lib/prisma";
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ group?: string | string[] }>;
+}) {
   const session = await auth();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const activeCircleCode = Array.isArray(resolvedSearchParams.group)
+    ? resolvedSearchParams.group[0]
+    : resolvedSearchParams.group;
   if (!session?.user?.id) {
     return (
       <div className="min-h-screen pb-24">
-        <SiteHeader session={session} />
+        <SiteHeader session={session} activeCircleCode={activeCircleCode} />
         <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6">
-          <section className="rounded-lg border border-white/10 bg-night/40 p-6 text-center text-white/80">
+          <section className="border-t-2 border-white/25 pt-4 text-center text-white/80 md:rounded-lg md:border md:border-white/10 md:bg-night/40 md:p-6">
             <p className="text-lg font-semibold">Sign in required</p>
             <p className="mt-2 text-sm text-white/60">
               Notifications are available once you log in.
@@ -43,7 +51,7 @@ export default async function NotificationsPage() {
 
   return (
     <div className="min-h-screen pb-24">
-      <SiteHeader session={session} />
+      <SiteHeader session={session} activeCircleCode={activeCircleCode} />
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 text-white">
         <section className="space-y-3">
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -55,7 +63,7 @@ export default async function NotificationsPage() {
             want weekly summaries.
           </p>
         </section>
-        <section className="rounded-lg border border-white/10 bg-night/40 p-6">
+        <section className="border-t-2 border-white/25 pt-4 md:rounded-lg md:border md:border-white/10 md:bg-night/40 md:p-6">
           <NotificationPreferences groups={groups} />
         </section>
       </main>

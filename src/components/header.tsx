@@ -18,13 +18,21 @@ type ViewingFeedConfig = {
 type SiteHeaderProps = {
   session: Session | null;
   viewingFeed?: ViewingFeedConfig;
+  activeCircleCode?: string;
 };
 
-export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
+export function SiteHeader({ session, viewingFeed, activeCircleCode }: SiteHeaderProps) {
+  const resolvedCircleCode = viewingFeed?.activeCode ?? activeCircleCode;
   const homeHref =
-    viewingFeed?.activeCode && viewingFeed.activeCode !== "personal"
-      ? `/?group=${viewingFeed.activeCode}`
+    resolvedCircleCode && resolvedCircleCode !== "personal"
+      ? `/?group=${resolvedCircleCode}`
       : "/";
+  const previewLoginEnabled = Boolean(
+    (process.env.VERCEL_ENV === "preview" ||
+      process.env.NODE_ENV === "development") &&
+      process.env.PREVIEW_AUTH_EMAIL &&
+      process.env.PREVIEW_AUTH_PASSWORD
+  );
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
       <Link
@@ -50,10 +58,13 @@ export function SiteHeader({ session, viewingFeed }: SiteHeaderProps) {
               image: session.user.image,
               role: session.user.role,
             }}
-            activeCircleCode={viewingFeed?.activeCode}
+            activeCircleCode={resolvedCircleCode}
           />
         ) : (
-          <AuthButton isAuthenticated={false} />
+          <AuthButton
+            isAuthenticated={false}
+            showPreviewLogin={previewLoginEnabled}
+          />
         )}
       </div>
     </header>

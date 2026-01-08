@@ -98,7 +98,7 @@ export function AdminAllowlistPanel() {
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-white/10 bg-night/30 p-4 text-white">
+    <div className="space-y-4 border-t-2 border-white/25 pt-4 text-white md:rounded-lg md:border md:border-white/10 md:bg-night/30 md:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-white/50">
@@ -145,7 +145,7 @@ export function AdminAllowlistPanel() {
           {entries.map((entry) => (
             <li
               key={entry.email}
-              className="flex items-center justify-between rounded-lg border border-white/10 bg-night/40 px-4 py-3"
+              className="flex items-center justify-between rounded-lg bg-white/5 px-4 py-3"
             >
               <div>
                 <p className="text-sm font-semibold">{entry.email}</p>
