@@ -86,14 +86,15 @@ async function getLatestEntries(
   const where: Prisma.WatchEntryWhereInput = groupId
     ? { groupId }
     : { groupId: null, userId: viewerId ?? "__none__" };
+  const mediaWhere: Prisma.MediaWhereInput = {};
   if (mediaType !== "all") {
-    where.media = { type: mediaType };
+    mediaWhere.type = mediaType;
   }
   if (genreFilter) {
-    where.media = {
-      ...(where.media ?? {}),
-      genre: { contains: genreFilter, mode: "insensitive" },
-    };
+    mediaWhere.genre = { contains: genreFilter, mode: "insensitive" };
+  }
+  if (Object.keys(mediaWhere).length > 0) {
+    where.media = mediaWhere;
   }
   const orderBy: Prisma.WatchEntryOrderByWithRelationInput[] = [
     { createdAt: "desc" },
