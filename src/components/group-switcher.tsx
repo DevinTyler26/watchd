@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import { ModalShell } from "@/components/modal-shell";
 
 type GroupOption = {
   id: string;
@@ -143,69 +144,70 @@ export function NavGroupSwitcher({ groups, activeCode }: GroupSwitcherProps) {
       </div>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 sm:hidden">
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setIsOpen(false)}
-            aria-hidden
-          />
-          <div className="relative w-full max-w-md max-h-[80vh] overflow-y-auto rounded-lg border border-white/10 bg-night/95 p-4 pb-6 shadow-2xl shadow-black/40">
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
-                  Choose feed
-                </p>
-                <p className="text-sm text-white/70">
-                  Where do you want to look?
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="text-white/40 transition hover:text-white"
-              >
-                <span className="sr-only">Close</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+        <ModalShell
+          onClose={() => setIsOpen(false)}
+          overlayClassName="bg-black/60 sm:hidden"
+          panelClassName="w-full max-w-md max-h-[80vh] overflow-y-auto rounded-lg border border-white/10 bg-night/95 p-4 pb-6 shadow-2xl shadow-black/40 sm:hidden"
+        >
+          {(requestClose) => (
+            <>
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">
+                    Choose feed
+                  </p>
+                  <p className="text-sm text-white/70">
+                    Where do you want to look?
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="text-white/40 transition hover:text-white"
                 >
-                  <path d="M6 6l12 12" />
-                  <path d="M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-            <div className="space-y-2">
-              {options.map((option) => {
-                const isActive = option.value === activeCode;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleSelect(option.value)}
-                    className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition ${
-                      isActive
-                        ? "border-brand bg-brand/10 text-white"
-                        : "border-white/10 bg-white/5 text-white/80 hover:border-white/20 hover:bg-white/10"
-                    }`}
+                  <span className="sr-only">Close</span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
-                    <span>{option.label}</span>
-                    {isActive ? (
-                      <span className="text-[10px] uppercase tracking-[0.3em] text-brand">
-                        Current
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+                    <path d="M6 6l12 12" />
+                    <path d="M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-2">
+                {options.map((option) => {
+                  const isActive = option.value === activeCode;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleSelect(option.value)}
+                      className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm font-semibold transition ${
+                        isActive
+                          ? "border-brand bg-brand/10 text-white"
+                          : "border-white/10 bg-white/5 text-white/80 hover:border-white/20 hover:bg-white/10"
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      {isActive ? (
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-brand">
+                          Current
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
       {isPending ? (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 backdrop-blur">
