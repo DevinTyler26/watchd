@@ -9,6 +9,7 @@ import {
   OfflineQueuedError,
 } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-errors";
+import { ModalShell } from "@/components/modal-shell";
 
 type ShareTarget = {
   id: string | null;
@@ -95,6 +96,14 @@ export function SearchAndShare({
     if (typeof window === "undefined") {
       return;
     }
+    const resetFilters = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("type");
+      url.searchParams.delete("genre");
+      url.searchParams.delete("sort");
+      const next = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ""}`;
+      router.replace(next, { scroll: false });
+    };
     const scrollToLatest = () => {
       const latest = document.getElementById("latest-entry");
       if (latest) {
@@ -106,6 +115,7 @@ export function SearchAndShare({
     };
 
     // Wait for search results to clear and layout to settle before scrolling.
+    resetFilters();
     requestAnimationFrame(() => requestAnimationFrame(scrollToLatest));
   };
 
@@ -684,52 +694,61 @@ export function SearchAndShare({
       </div>
 
       {confirmation ? (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8">
-          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-6 text-center text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-emerald">
-              Entry added
-            </p>
-            <h3 className="mt-3 text-2xl font-semibold">Signal sent</h3>
-            <p className="mt-2 text-sm text-white/70">
-              {confirmation.title}
-              {confirmation.year ? ` · ${confirmation.year}` : ""} is now live
-              in your {confirmation.destination} signal feed.
-            </p>
-            {confirmation.posterUrl && confirmation.posterUrl !== "N/A" ? (
-              <Image
-                src={confirmation.posterUrl}
-                alt={confirmation.title}
-                width={120}
-                height={180}
-                className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
-              />
-            ) : (
-              <Image
-                src="/poster-unavailable.png"
-                alt="Poster unavailable"
-                width={120}
-                height={180}
-                className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
-              />
-            )}
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setConfirmation(null)}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Keep browsing
-              </button>
-              <button
-                type="button"
-                onClick={scrollToFeed}
-                className="flex-1 rounded-lg bg-emerald px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
-              >
-                View feed
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalShell
+          onClose={() => setConfirmation(null)}
+          overlayClassName="bg-black/60"
+          panelClassName="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-6 text-center text-white shadow-2xl shadow-black/40"
+        >
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-emerald">
+                Entry added
+              </p>
+              <h3 className="mt-3 text-2xl font-semibold">Signal sent</h3>
+              <p className="mt-2 text-sm text-white/70">
+                {confirmation.title}
+                {confirmation.year ? ` · ${confirmation.year}` : ""} is now live
+                in your {confirmation.destination} signal feed.
+              </p>
+              {confirmation.posterUrl && confirmation.posterUrl !== "N/A" ? (
+                <Image
+                  src={confirmation.posterUrl}
+                  alt={confirmation.title}
+                  width={120}
+                  height={180}
+                  className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
+                />
+              ) : (
+                <Image
+                  src="/poster-unavailable.png"
+                  alt="Poster unavailable"
+                  width={120}
+                  height={180}
+                  className="mx-auto mt-4 rounded-lg border border-white/10 object-cover"
+                />
+              )}
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Keep browsing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    requestClose();
+                    scrollToFeed();
+                  }}
+                  className="flex-1 rounded-lg bg-emerald px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
+                >
+                  View feed
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
     </>
   );

@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { SiteHeader } from "@/components/header";
 import { AddEntryPanel } from "@/components/add-entry-panel";
 import { EntryCard, type EntryWithUser } from "@/components/entry-card";
-import { FeedSortControls } from "@/components/feed-sort-controls";
+import { FeedFilterMenu } from "@/components/feed-filter-menu";
 import { SharedWatchlistHero } from "@/components/shared-watchlist-hero";
 import { getUserGroups } from "@/lib/groups";
 import { prisma } from "@/lib/prisma";
@@ -20,6 +20,8 @@ function isPromise<T>(value: unknown): value is Promise<T> {
 
 type SortMode = "recent" | "likes";
 type ReactionType = "LIKE" | "DISLIKE";
+type MediaFilterParam = "all" | "movie" | "tv";
+type MediaTypeFilter = "all" | "movie" | "series";
 
 type FeedEntryQuery = Prisma.WatchEntryGetPayload<{
   include: {
@@ -73,15 +75,26 @@ const feedEntryInclude = {
 
 async function getLatestEntries(
   groupId: string | null,
-  viewerId: string | null
+  viewerId: string | null,
+  mediaType: MediaTypeFilter,
+  genreFilter: string
 ): Promise<FeedEntryQuery[]> {
   if (!groupId && !viewerId) {
     return [];
   }
 
-  const where = groupId
+  const where: Prisma.WatchEntryWhereInput = groupId
     ? { groupId }
     : { groupId: null, userId: viewerId ?? "__none__" };
+  if (mediaType !== "all") {
+    where.media = { type: mediaType };
+  }
+  if (genreFilter) {
+    where.media = {
+      ...(where.media ?? {}),
+      genre: { contains: genreFilter, mode: "insensitive" },
+    };
+  }
   const orderBy: Prisma.WatchEntryOrderByWithRelationInput[] = [
     { createdAt: "desc" },
   ];
@@ -94,9 +107,52 @@ async function getLatestEntries(
   }) as Promise<FeedEntryQuery[]>;
 }
 
+async function getGenreOptions(
+  groupId: string | null,
+  viewerId: string | null,
+  mediaType: MediaTypeFilter
+): Promise<string[]> {
+  if (!groupId && !viewerId) {
+    return [];
+  }
+
+  const where: Prisma.WatchEntryWhereInput = groupId
+    ? { groupId }
+    : { groupId: null, userId: viewerId ?? "__none__" };
+  if (mediaType !== "all") {
+    where.media = { type: mediaType };
+  }
+
+  const rows = await prisma.watchEntry.findMany({
+    where,
+    select: {
+      media: {
+        select: {
+          genre: true,
+        },
+      },
+    },
+    distinct: ["mediaId"],
+  });
+
+  const genres = new Set<string>();
+  rows.forEach((row) => {
+    if (!row.media?.genre) return;
+    row.media.genre
+      .split(",")
+      .map((genre) => genre.trim())
+      .filter(Boolean)
+      .forEach((genre) => genres.add(genre));
+  });
+
+  return Array.from(genres).sort((a, b) => a.localeCompare(b));
+}
+
 type SearchParams = {
   group?: string | string[];
   sort?: string;
+  type?: string;
+  genre?: string;
 };
 
 type GroupSummary = {
@@ -156,6 +212,16 @@ export default async function Home({
     : requestedCodeRaw ?? "personal";
   const requestedSortRaw = resolvedParams?.sort;
   const sortMode: SortMode = requestedSortRaw === "likes" ? "likes" : "recent";
+  const requestedTypeRaw = resolvedParams?.type;
+  const typeFilterParam: MediaFilterParam =
+    requestedTypeRaw === "movie" || requestedTypeRaw === "tv"
+      ? requestedTypeRaw
+      : "all";
+  const mediaTypeFilter: MediaTypeFilter =
+    typeFilterParam === "tv" ? "series" : typeFilterParam;
+  const requestedGenreRaw = resolvedParams?.genre;
+  const genreFilter =
+    typeof requestedGenreRaw === "string" ? requestedGenreRaw.trim() : "";
   const selectedGroup =
     requestedCode !== "personal"
       ? groups.find((group) => group.shareCode === requestedCode) ??
@@ -166,7 +232,21 @@ export default async function Home({
     selectedGroup?.shareCode ?? selectedGroup?.slug ?? "personal";
   const viewerId = session?.user?.id ?? null;
   const baseGroupId = selectedGroup ? selectedGroup.id : null;
-  const entriesRaw = await getLatestEntries(baseGroupId, viewerId);
+  const genreOptions = await getGenreOptions(
+    baseGroupId,
+    viewerId,
+    mediaTypeFilter
+  );
+  const entriesRaw = await getLatestEntries(
+    baseGroupId,
+    viewerId,
+    mediaTypeFilter,
+    genreFilter
+  );
+  const entriesAllRaw =
+    sortMode === "recent" && mediaTypeFilter === "all" && !genreFilter
+      ? entriesRaw
+      : await getLatestEntries(baseGroupId, viewerId, "all", "");
   const entryIds = entriesRaw.map((entry) => entry.id);
   const entryIdSqlList = entryIds.map((id) => Prisma.sql`${id}`);
   const reactionCounts = entryIds.length
@@ -248,23 +328,31 @@ export default async function Home({
   }
   const entries: EntryWithUser[] = entriesRaw
     .filter(
-      (entry): entry is FeedEntryQuery & { media: NonNullable<FeedEntryQuery["media"]> } =>
-        entry.media !== null,
+      (
+        entry
+      ): entry is FeedEntryQuery & {
+        media: NonNullable<FeedEntryQuery["media"]>;
+      } => entry.media !== null
     )
     .map((entry) => {
-    const counts = reactionCountMap.get(entry.id) ?? {
-      likeCount: 0,
-      dislikeCount: 0,
-    };
-    return {
-      ...entry,
-      likeCount: counts.likeCount,
-      dislikeCount: counts.dislikeCount,
-      viewerReaction: viewerReactionMap.get(entry.id) ?? null,
-      sharedGroups:
-        sharedGroupsByKey.get(`${entry.userId}:${entry.mediaId ?? ""}`) ?? [],
-    };
-  });
+      const counts = reactionCountMap.get(entry.id) ?? {
+        likeCount: 0,
+        dislikeCount: 0,
+      };
+      return {
+        ...entry,
+        likeCount: counts.likeCount,
+        dislikeCount: counts.dislikeCount,
+        viewerReaction: viewerReactionMap.get(entry.id) ?? null,
+        sharedGroups:
+          sharedGroupsByKey.get(`${entry.userId}:${entry.mediaId ?? ""}`) ?? [],
+      };
+    });
+  const uniqueGenres = genreFilter
+    ? Array.from(new Set([...genreOptions, genreFilter])).sort((a, b) =>
+        a.localeCompare(b)
+      )
+    : genreOptions;
 
   if (sortMode === "likes") {
     entries.sort((a, b) => {
@@ -278,11 +366,7 @@ export default async function Home({
     });
   }
   const existingFeedIds = Array.from(
-    new Set(
-      entries
-        .map((entry) => entry.media.tmdbId)
-        .filter(Boolean)
-    )
+    new Set(entries.map((entry) => entry.media.tmdbId).filter(Boolean))
   );
   const shareTarget = {
     id: selectedGroup ? selectedGroup.id : null,
@@ -313,21 +397,42 @@ export default async function Home({
         ) : null}
 
         <section id="signal-feed" className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="">
+            <div className="flex items-center justify-between">
               <p className="text-sm uppercase tracking-[0.4em] text-white/50">
                 Signal feed
               </p>
-              <h2 className="text-2xl font-semibold">
-                Latest drops · {selectedGroup ? selectedGroup.name : "Personal"}
-              </h2>
-              {groupMismatch ? (
-                <p className="mt-1 text-sm text-amber-300">
-                  You are not part of that group. Showing personal feed instead.
-                </p>
-              ) : null}
+              <div className="sm:hidden">
+                <FeedFilterMenu
+                  activeType={typeFilterParam}
+                  activeGenre={genreFilter}
+                  genres={uniqueGenres}
+                  activeSort={sortMode}
+                />
+              </div>
             </div>
-            <FeedSortControls activeSort={sortMode} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold">
+                  Latest drops ·{" "}
+                  {selectedGroup ? selectedGroup.name : "Personal"}
+                </h2>
+                {groupMismatch ? (
+                  <p className="mt-1 text-sm text-amber-300">
+                    You are not part of that group. Showing personal feed
+                    instead.
+                  </p>
+                ) : null}
+              </div>
+              <div className="hidden sm:flex">
+                <FeedFilterMenu
+                  activeType={typeFilterParam}
+                  activeGenre={genreFilter}
+                  genres={uniqueGenres}
+                  activeSort={sortMode}
+                />
+              </div>
+            </div>
           </div>
           {entries.length > 0 ? (
             <div className="grid gap-6">
@@ -352,7 +457,9 @@ export default async function Home({
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-white/10 p-10 text-center text-white/60">
-              Nobody has logged anything yet. Be the first to drop a rec!
+              {entriesAllRaw.length === 0
+                ? "Nobody has logged anything yet. Be the first to drop a rec!"
+                : "No drops match these filters yet."}
             </div>
           )}
         </section>

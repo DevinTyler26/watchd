@@ -6,6 +6,7 @@ import { apiJson, ApiError } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-errors";
 import { groupMembersResponseSchema } from "@/lib/group-schemas";
 import { useToast } from "@/components/toast-provider";
+import { ModalShell } from "@/components/modal-shell";
 
 type GroupSummary = {
   id: string;
@@ -545,142 +546,141 @@ export function GroupManagerPanel({
   return (
     <div className="space-y-4">
       {createdGroupModal ? (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setCreatedGroupModal(null);
-            }
-          }}
+        <ModalShell
+          onClose={() => setCreatedGroupModal(null)}
+          overlayClassName="bg-black/60"
+          panelClassName="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40 md:max-w-lg md:p-8"
         >
-          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40 md:max-w-lg md:p-8">
-            <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
-              Circle created
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Jump to {createdGroupModal.name}?
-            </h3>
-            <p className="mt-3 text-sm text-white/70">
-              You can start inviting members or manage roles right away.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setCreatedGroupModal(null)}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Stay here
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const targetCode = createdGroupModal.shareCode;
-                  setCreatedGroupModal(null);
-                  void router.push(`/circles?group=${targetCode}`);
-                }}
-                className="flex-1 rounded-lg bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                Manage this circle
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const targetCode = createdGroupModal.shareCode;
-                  setCreatedGroupModal(null);
-                  void router.push(`/?group=${targetCode}`);
-                }}
-                className="flex-1 rounded-lg border border-emerald-400/50 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                View feed
-              </button>
-            </div>
-          </div>
-        </div>
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
+                Circle created
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Jump to {createdGroupModal.name}?
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                You can start inviting members or manage roles right away.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Stay here
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetCode = createdGroupModal.shareCode;
+                    requestClose();
+                    void router.push(`/circles?group=${targetCode}`);
+                  }}
+                  className="flex-1 rounded-lg bg-emerald-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Manage this circle
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetCode = createdGroupModal.shareCode;
+                    requestClose();
+                    void router.push(`/?group=${targetCode}`);
+                  }}
+                  className="flex-1 rounded-lg border border-emerald-400/50 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  View feed
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
       {deleteGroupModal ? (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setDeleteGroupModal(null);
-            }
-          }}
+        <ModalShell
+          onClose={() => setDeleteGroupModal(null)}
+          overlayClassName="bg-black/60"
+          panelClassName="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40"
         >
-          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
-              Danger zone
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Delete {deleteGroupModal.name}?
-            </h3>
-            <p className="mt-3 text-sm text-white/70">
-              This will permanently remove the circle and all of its entries.
-              This action cannot be undone.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setDeleteGroupModal(null)}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isDeletingGroup}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void confirmDeleteGroup()}
-                className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isDeletingGroup}
-              >
-                {isDeletingGroup ? "Deleting..." : "Delete circle"}
-              </button>
-            </div>
-          </div>
-        </div>
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-rose-300">
+                Danger zone
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Delete {deleteGroupModal.name}?
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                This will permanently remove the circle and all of its entries.
+                This action cannot be undone.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isDeletingGroup}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDeleteGroup()}
+                  className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={isDeletingGroup}
+                >
+                  {isDeletingGroup ? "Deleting..." : "Delete circle"}
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
       {pendingInviteModal ? (
-        <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 px-6 py-8"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setPendingInviteModal(null);
-            }
-          }}
+        <ModalShell
+          onClose={() => setPendingInviteModal(null)}
+          overlayClassName="bg-black/60"
+          panelClassName="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40"
         >
-          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-night/95 p-6 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-amber-300">
-              Invite pending
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">Resend this invite?</h3>
-            <p className="mt-3 text-sm text-white/70">
-              {pendingInviteModal.email} already has a pending invite. You can
-              resend it or keep the existing one. If you resend, the previous
-              invite link will no longer work.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setPendingInviteModal(null)}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isInviting}
-              >
-                Keep existing
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const email = pendingInviteModal.email;
-                  setPendingInviteModal(null);
-                  void resendInvite(email);
-                }}
-                className="flex-1 rounded-lg bg-amber-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isInviting}
-              >
-                {isInviting ? "Resending..." : "Resend invite"}
-              </button>
-            </div>
-          </div>
-        </div>
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-amber-300">
+                Invite pending
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Resend this invite?
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                {pendingInviteModal.email} already has a pending invite. You can
+                resend it or keep the existing one. If you resend, the previous
+                invite link will no longer work.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isInviting}
+                >
+                  Keep existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const email = pendingInviteModal.email;
+                    requestClose();
+                    void resendInvite(email);
+                  }}
+                  className="flex-1 rounded-lg bg-amber-400 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={isInviting}
+                >
+                  {isInviting ? "Resending..." : "Resend invite"}
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
 
       {statusMessage ? (
@@ -1026,119 +1026,137 @@ export function GroupManagerPanel({
       </div>
 
       {joinSuccess ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
-              You&apos;re in
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Welcome to {joinSuccess.name}
-            </h3>
-            <p className="mt-3 text-sm text-white/70">
-              Hop into that signal feed now or stay here to keep managing your
-              groups.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setJoinSuccess(null)}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Stay here
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  router.push(`/?group=${joinSuccess.shareCode}`);
-                  setJoinSuccess(null);
-                }}
-                className="flex-1 rounded-lg bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
-              >
-                Go to feed
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalShell
+          onClose={() => setJoinSuccess(null)}
+          overlayClassName="bg-black/70"
+          panelClassName="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40"
+        >
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-emerald-300">
+                You&apos;re in
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Welcome to {joinSuccess.name}
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                Hop into that signal feed now or stay here to keep managing your
+                groups.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Stay here
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    requestClose();
+                    router.push(`/?group=${joinSuccess.shareCode}`);
+                  }}
+                  className="flex-1 rounded-lg bg-brand px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:opacity-90"
+                >
+                  Go to feed
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
 
       {confirmLeave ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/50">
-              Leave circle
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Leave {confirmLeave.name}?
-            </h3>
-            <p className="mt-3 text-sm text-white/70">
-              You will lose access to this signal feed until someone invites you
-              again.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setConfirmLeave(null)}
-                disabled={isLeaving}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Stay in group
-              </button>
-              <button
-                type="button"
-                onClick={confirmLeaveGroup}
-                disabled={isLeaving}
-                className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isLeaving ? "Leaving..." : "Leave group"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalShell
+          onClose={() => setConfirmLeave(null)}
+          overlayClassName="bg-black/70"
+          panelClassName="w-full max-w-md rounded-lg border border-white/10 bg-night/90 p-8 text-white shadow-2xl shadow-black/40"
+        >
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-white/50">
+                Leave circle
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Leave {confirmLeave.name}?
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                You will lose access to this signal feed until someone invites
+                you again.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  disabled={isLeaving}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Stay in group
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmLeaveGroup}
+                  disabled={isLeaving}
+                  className="flex-1 rounded-lg bg-rose-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isLeaving ? "Leaving..." : "Leave group"}
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
 
       {pendingOwnershipChange ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 py-8">
-          <div className="w-full max-w-md rounded-lg border border-amber-400/30 bg-night/90 p-8 text-white shadow-2xl shadow-black/40">
-            <p className="text-xs uppercase tracking-[0.4em] text-amber-200">
-              Transfer ownership
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold">
-              Make {pendingOwnershipChange.name} the owner?
-            </h3>
-            <p className="mt-3 text-sm text-white/70">
-              Owners control invites, roles, and removal rights. You will lose
-              owner-only powers after this change.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setPendingOwnershipChange(null)}
-                disabled={roleUpdatingId === pendingOwnershipChange.userId}
-                className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!pendingOwnershipChange) return;
-                  void updateMemberRole(
-                    pendingOwnershipChange.userId,
-                    "OWNER",
-                    pendingOwnershipChange.name
-                  );
-                  setPendingOwnershipChange(null);
-                }}
-                disabled={roleUpdatingId === pendingOwnershipChange.userId}
-                className="flex-1 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {roleUpdatingId === pendingOwnershipChange.userId
-                  ? "Transferring..."
-                  : "Confirm transfer"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalShell
+          onClose={() => setPendingOwnershipChange(null)}
+          overlayClassName="bg-black/70"
+          panelClassName="w-full max-w-md rounded-lg border border-amber-400/30 bg-night/90 p-8 text-white shadow-2xl shadow-black/40"
+        >
+          {(requestClose) => (
+            <>
+              <p className="text-xs uppercase tracking-[0.4em] text-amber-200">
+                Transfer ownership
+              </p>
+              <h3 className="mt-2 text-2xl font-semibold">
+                Make {pendingOwnershipChange.name} the owner?
+              </h3>
+              <p className="mt-3 text-sm text-white/70">
+                Owners control invites, roles, and removal rights. You will
+                lose owner-only powers after this change.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  disabled={roleUpdatingId === pendingOwnershipChange.userId}
+                  className="flex-1 rounded-lg border border-white/20 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!pendingOwnershipChange) return;
+                    void updateMemberRole(
+                      pendingOwnershipChange.userId,
+                      "OWNER",
+                      pendingOwnershipChange.name
+                    );
+                    requestClose();
+                  }}
+                  disabled={roleUpdatingId === pendingOwnershipChange.userId}
+                  className="flex-1 rounded-lg bg-amber-500 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-night transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {roleUpdatingId === pendingOwnershipChange.userId
+                    ? "Transferring..."
+                    : "Confirm transfer"}
+                </button>
+              </div>
+            </>
+          )}
+        </ModalShell>
       ) : null}
     </div>
   );
