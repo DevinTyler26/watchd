@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { AdminAllowlistPanel } from "@/components/admin-allowlist-panel";
+import { AdminInviteRequestsPanel } from "@/components/admin-invite-requests-panel";
 import { SiteHeader } from "@/components/header";
 
 export default async function AdminPage({
@@ -63,6 +64,7 @@ export default async function AdminPage({
         </section>
 
         <AdminAllowlistPanel />
+        <AdminInviteRequestsPanel />
 
         <section className="border-t-2 border-white/25 pt-4 text-sm text-white/70 md:rounded-lg md:border md:border-white/5 md:bg-night/40 md:p-4">
           <p className="font-semibold text-white">How this works</p>

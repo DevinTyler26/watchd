@@ -7,6 +7,7 @@ type ModalShellProps = {
   children: (requestClose: () => void) => ReactNode;
   overlayClassName?: string;
   panelClassName?: string;
+  dismissable?: boolean;
 };
 
 export function ModalShell({
@@ -14,6 +15,7 @@ export function ModalShell({
   children,
   overlayClassName = "bg-black/60",
   panelClassName = "",
+  dismissable = true,
 }: ModalShellProps) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -33,6 +35,9 @@ export function ModalShell({
         isVisible ? "opacity-100" : "opacity-0"
       } ${overlayClassName}`}
       onClick={(event) => {
+        if (!dismissable) {
+          return;
+        }
         if (event.target === event.currentTarget) {
           requestClose();
         }

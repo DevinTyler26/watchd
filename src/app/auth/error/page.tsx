@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+
+import { InviteRequestForm } from "@/components/invite-request-form";
 
 const ERROR_COPY: Record<string, { title: string; message: string }> = {
   AccessDenied: {
@@ -39,6 +42,13 @@ function resolveError(searchParams?: { error?: string | string[] }) {
   return ERROR_COPY[code] ?? ERROR_COPY.Default;
 }
 
+function resolveEmail(searchParams?: { email?: string | string[] }) {
+  if (!searchParams?.email) return null;
+  return Array.isArray(searchParams.email)
+    ? searchParams.email[0] ?? null
+    : searchParams.email;
+}
+
 export default async function AuthErrorPage({
   searchParams,
 }: {
@@ -51,6 +61,15 @@ export default async function AuthErrorPage({
       ? await searchParams
       : (searchParams as { error?: string | string[] } | undefined);
   const copy = resolveError(resolvedParams);
+  const errorCode = Array.isArray(resolvedParams?.error)
+    ? resolvedParams?.error[0]
+    : resolvedParams?.error;
+  const isAccessDenied = errorCode === "AccessDenied";
+  const cookieStore = await cookies();
+  const requestedEmail =
+    resolveEmail(resolvedParams ?? undefined) ??
+    cookieStore.get("watchd_login_email")?.value ??
+    null;
 
   return (
     <div className="min-h-screen bg-night pb-24 text-white">
@@ -74,7 +93,7 @@ export default async function AuthErrorPage({
           <p className="text-sm text-white/70">{copy.message}</p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
-              href="/api/auth/signin"
+              href="/auth/signin"
               className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/10 px-5 py-3 text-sm font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-white/20"
             >
               Try another account
@@ -87,6 +106,19 @@ export default async function AuthErrorPage({
             </Link>
           </div>
         </section>
+
+        {isAccessDenied ? (
+          <section
+            id="request-invite"
+            className="space-y-4 rounded-lg border border-white/10 bg-night/60 p-6 text-sm text-white/70"
+          >
+            <p className="font-semibold text-white">Need an invite?</p>
+            <p>
+              Leave your email below. We will only accept one request per email.
+            </p>
+            <InviteRequestForm initialEmail={requestedEmail} />
+          </section>
+        ) : null}
 
         <section className="rounded-lg border border-white/5 bg-night/40 p-5 text-sm text-white/70">
           <p className="font-semibold text-white">Why am I seeing this?</p>

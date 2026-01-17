@@ -1,7 +1,10 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { Prisma } from "@prisma/client";
 import { type NextAuthOptions, getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Email from "next-auth/providers/email";
 import Google from "next-auth/providers/google";
+import { sendMagicLinkEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 function assertEnv(name: string) {
@@ -13,12 +16,30 @@ function assertEnv(name: string) {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: {
+    ...PrismaAdapter(prisma),
+    async deleteSession(sessionToken) {
+      try {
+        return await prisma.session.delete({
+          where: { sessionToken },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  },
   session: {
     strategy: "database",
   },
   pages: {
     error: "/auth/error",
+    signIn: "/auth/signin",
   },
   providers: [
     Google({
@@ -29,6 +50,16 @@ export const authOptions: NextAuthOptions = {
         params: {
           prompt: "select_account",
         },
+      },
+    }),
+    Email({
+      from:
+        process.env.AUTH_FROM_EMAIL ??
+        process.env.INVITE_FROM_EMAIL ??
+        "noreply@watchd.app",
+      maxAge: 10 * 60,
+      async sendVerificationRequest({ identifier, url }) {
+        await sendMagicLinkEmail({ to: identifier, url });
       },
     }),
     ...(process.env.E2E_AUTH === "1"

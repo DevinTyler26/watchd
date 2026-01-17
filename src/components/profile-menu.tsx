@@ -8,13 +8,24 @@ import { useEffect, useRef, useState, useTransition } from "react";
 type ProfileMenuProps = {
   user: {
     name?: string | null;
+    email?: string | null;
     image?: string | null;
     role?: "USER" | "ADMIN";
   };
   activeCircleCode?: string;
 };
 
-function getInitials(name?: string | null) {
+function getInitials(name?: string | null, email?: string | null) {
+  const trimmedName = name?.trim();
+  if (trimmedName) {
+    return trimmedName[0]?.toUpperCase() ?? "?";
+  }
+
+  const trimmedEmail = email?.trim();
+  if (trimmedEmail) {
+    return trimmedEmail[0]?.toUpperCase() ?? "?";
+  }
+
   if (!name) {
     return "?";
   }
@@ -86,7 +97,7 @@ export function ProfileMenu({ user, activeCircleCode }: ProfileMenuProps) {
             className="h-11 w-11 rounded-lg object-cover"
           />
         ) : (
-          getInitials(user.name)
+          getInitials(user.name, user.email)
         )}
       </button>
       {open ? (

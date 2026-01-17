@@ -28,10 +28,7 @@ export function AuthButton({ isAuthenticated }: AuthButtonProps) {
         return;
       }
 
-      void signIn("google", {
-        prompt: "select_account",
-        callbackUrl,
-      });
+      void signIn(undefined, { callbackUrl });
     });
   }
 
@@ -54,7 +51,7 @@ export function AuthButton({ isAuthenticated }: AuthButtonProps) {
           : "Sign out"
         : isPending
         ? "Signing in..."
-        : "Sign in with Google"}
+        : "Sign in"}
     </button>
   );
 }
