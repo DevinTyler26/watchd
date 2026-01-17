@@ -26,6 +26,7 @@ model User {
   notificationPrefs GroupNotificationPreference[]
   allowlistEntries GroupAllowlist[]   @relation("AllowlistCreator")
   comments         WatchEntryComment[]
+  inviteDecisions  InviteRequest[]    @relation("InviteDecision")
 }
 
 model Account {
@@ -60,6 +61,23 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+enum InviteRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+model InviteRequest {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  status             InviteRequestStatus @default(PENDING)
+  createdAt          DateTime            @default(now())
+  decidedAt          DateTime?
+  decidedById        String?
+  decidedBy          User?               @relation("InviteDecision", fields: [decidedById], references: [id])
+  approvedEmailSentAt DateTime?
 }
 
 model WatchEntry {

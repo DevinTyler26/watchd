@@ -43,8 +43,7 @@ async function sendEmail(payload: {
   html: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail =
-    process.env.INVITE_FROM_EMAIL ?? "noreply@watchd.devincunningham.com";
+  const fromEmail = process.env.INVITE_FROM_EMAIL ?? "noreply@watchd.app";
 
   if (!apiKey) {
     console.warn("RESEND_API_KEY is not configured; skipping email.");
@@ -80,6 +79,85 @@ async function sendEmail(payload: {
     console.error("Email request failed", error);
     return { sent: false };
   }
+}
+
+export async function sendMagicLinkEmail(payload: {
+  to: string;
+  url: string;
+}): Promise<{ sent: boolean }> {
+  const parsedUrl = new URL(payload.url);
+  const host = parsedUrl.host;
+  const subject = `Your Watchd sign-in link`;
+  const text = `Use this link to sign in to Watchd:\n\n${payload.url}\n\nThis link can be used once and will expire soon.`;
+  const html = `
+    <div style="max-width:640px; margin:0 auto; padding:20px; font-family:Inter, system-ui, -apple-system, sans-serif; background:#0b1222; color:#e6f0ff;">
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:linear-gradient(120deg, #0f1f3a, #13294d); border:1px solid #203154;">
+        <div style="width:40px; height:40px; border-radius:12px; background:#9ef; color:#0b1222; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1;">W</div>
+        <div>
+          <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#9ecbff;">Magic link</div>
+          <div style="font-size:18px; font-weight:700;">Sign in to Watchd</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; padding:18px 16px; border-radius:14px; background:#0f1628; border:1px solid #243044;">
+        <p style="margin:0 0 12px 0; font-size:15px; color:#cdd5e1;">Use the button below to sign in to <strong>${host}</strong>. This link expires soon and can be used once.</p>
+        <div style="text-align:center; margin:18px 0;">
+          <a href="${payload.url}" style="display:inline-block; padding:12px 20px; border-radius:12px; background:#9ef; color:#0b1222; font-weight:800; text-decoration:none; letter-spacing:0.08em; text-transform:uppercase;">Sign in</a>
+        </div>
+        <p style="margin:0 0 10px 0; font-size:13px; color:#9fb2cc;">If the button does not work, open this link:</p>
+        <p style="margin:0; word-break:break-all;"><a href="${payload.url}" style="color:#9ef; text-decoration:none;">${payload.url}</a></p>
+      </div>
+
+      <div style="margin-top:18px; text-align:center;">
+        <p style="margin:0; font-size:12px; color:#8aa2c2;">If you did not request this, you can ignore the email.</p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: payload.to,
+    subject,
+    text,
+    html,
+  });
+}
+
+export async function sendInviteApprovedEmail(payload: {
+  to: string;
+}): Promise<{ sent: boolean }> {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXTAUTH_URL ??
+    "http://localhost:3000";
+  const subject = "Your Watchd invite is ready";
+  const text = `You're approved to join Watchd.\n\nSign in here: ${appUrl}`;
+  const html = `
+    <div style="max-width:640px; margin:0 auto; padding:20px; font-family:Inter, system-ui, -apple-system, sans-serif; background:#0b1222; color:#e6f0ff;">
+      <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:linear-gradient(120deg, #0f1f3a, #13294d); border:1px solid #203154;">
+        <div style="width:40px; height:40px; border-radius:12px; background:#9ef; color:#0b1222; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; line-height:1;">W</div>
+        <div>
+          <div style="font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#9ecbff;">Invite approved</div>
+          <div style="font-size:18px; font-weight:700;">Welcome to Watchd</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; padding:18px 16px; border-radius:14px; background:#0f1628; border:1px solid #243044;">
+        <p style="margin:0 0 12px 0; font-size:15px; color:#cdd5e1;">You're approved to join Watchd. Use the button below to sign in.</p>
+        <div style="text-align:center; margin:18px 0;">
+          <a href="${appUrl}" style="display:inline-block; padding:12px 20px; border-radius:12px; background:#9ef; color:#0b1222; font-weight:800; text-decoration:none; letter-spacing:0.08em; text-transform:uppercase;">Sign in</a>
+        </div>
+        <p style="margin:0 0 10px 0; font-size:13px; color:#9fb2cc;">If the button does not work, open this link:</p>
+        <p style="margin:0; word-break:break-all;"><a href="${appUrl}" style="color:#9ef; text-decoration:none;">${appUrl}</a></p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: payload.to,
+    subject,
+    text,
+    html,
+  });
 }
 
 export async function sendInviteEmail(
