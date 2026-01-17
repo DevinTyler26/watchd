@@ -32,7 +32,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = nameSchema.safeParse(body);
   if (!parsed.success) {
-    return jsonResponse({ error: parsed.error.errors[0]?.message }, { status: 400 });
+    return jsonResponse(
+      { error: parsed.error.issues[0]?.message },
+      { status: 400 }
+    );
   }
 
   try {
