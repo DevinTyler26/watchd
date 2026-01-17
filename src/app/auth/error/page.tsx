@@ -42,7 +42,11 @@ function resolveError(searchParams?: { error?: string | string[] }) {
   return ERROR_COPY[code] ?? ERROR_COPY.Default;
 }
 
-function resolveEmail(searchParams?: { email?: string | string[] }) {
+function resolveEmail(
+  searchParams?:
+    | { email?: string | string[]; error?: string | string[] }
+    | null
+) {
   if (!searchParams?.email) return null;
   return Array.isArray(searchParams.email)
     ? searchParams.email[0] ?? null
@@ -53,8 +57,8 @@ export default async function AuthErrorPage({
   searchParams,
 }: {
   searchParams?:
-    | Promise<{ error?: string | string[] }>
-    | { error?: string | string[] };
+    | Promise<{ error?: string | string[]; email?: string | string[] }>
+    | { error?: string | string[]; email?: string | string[] };
 }) {
   const resolvedParams =
     searchParams && isPromise(searchParams)
